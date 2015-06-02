@@ -34,6 +34,32 @@ switch opts.Ptype
             P(:,3*R+a) = reshape(sparse(rot90(R45)),[],1);
             
         end
+    case '2lines'
+        %line segments crossing the sample along the 2 cardinal axes,
+        %NOTE: Currently each axis is scanned twice to better compare with 4lines!
+        if imagesize(1)~=imagesize(2) || mod(imagesize(1),2)
+            error('The 4lines algorithm currently assumes a square image plane with a multiple of 2 pixels');
+        end
+        
+        R = imagesize(1)/2; %resolution; i.e., the number of pixels across the projection
+        P = spalloc(imagesize(1)*imagesize(2), 4*R, 2*imagesize(1)*imagesize(2));
+       
+        
+        pad = (imagesize(1)-R)/2;
+        
+        for a = 1:R
+            ix_1 = pad+(1:R);
+            ix_2 = (pad+a)*ones(1,R);
+            v = ones(1,R);
+            
+            template = sparse(ix_1,ix_2,v, imagesize(1),imagesize(2));
+            P(:,a) = reshape(template,[],1);
+            P(:,R+a) = reshape(sparse(ix_2,ix_1,v, imagesize(1),imagesize(1)),[],1);
+            P(:,2*R+a) = P(:,a);
+            P(:,3*R+a) = reshape(sparse(ix_2,ix_1,v, imagesize(1),imagesize(1)),[],1);
+        end
+        
+        
     otherwise
         error('Invalid projection method selected')
 end

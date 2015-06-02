@@ -12,9 +12,15 @@ $RECYCLE.BIN/
 *.tif
 *.tiff
 
+#Simulation output
+**/SimulationOutput/
 
 #Matlab autosave
 *.asv
+
+
+#compressed files
+*.zip
 
 # Windows Installer files
 *.cab

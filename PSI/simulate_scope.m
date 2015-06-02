@@ -1,4 +1,4 @@
-function simulate_scope (opts_in)
+function [ground_truth, M, obs, recon, opts] = simulate_scope (opts_in)
 %Simulates the fast 'compressed sensing' two-photon microscope
 
 %{
@@ -7,10 +7,6 @@ TO DO
         move image processing to gpuArray
         
         Incorporate prior from previous timepoint into estimate for next
-
-        Make the projections a region in the center of IM, not all of it
-            allow some seeds to move out of the projection field due to
-                sample motion, and deal with not being able to recover their activity
 
     SEGMENTATION
         Alternative skeletonization?
