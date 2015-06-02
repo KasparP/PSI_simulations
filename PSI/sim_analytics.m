@@ -6,12 +6,6 @@ cmap = [ 0 0 1; gray(1024)];
 P_im = full(reshape(sum(opts.P,2), size(obs.IM,1), size(obs.IM,2)));
 figure('Name', 'Field of view'), imshow(P_im,[])
 
-    %backward compatibility; If you're reading this, it can probably be removed
-    if ~isfield(R, 'dX')
-        R.dX = round(ground_truth.motion.pos(1,:));
-        R.dY = round(ground_truth.motion.pos(2,:));
-    end
-
 
 
 

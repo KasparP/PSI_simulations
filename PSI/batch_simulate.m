@@ -32,7 +32,15 @@ opts.scope.brightness = 10; %average photons per pulse, per pixel, across the ma
 opts.debug.magic_align = true; %just give the correct motion parameters to the reconstruction algorithm
 opts.debug.nonoise = false; % set all noise to 0
 
-for B=[5 10 15 20 30 40]
+
+
+
+opts.simname = 'ProjectionTypesAndBrightness';
+
+for p = [2,4]
+    opts.Ptype = [int2str(p) 'lines'];
+for B=[1 5 10 20]
     opts.scope.brightness = B;
-    simulate_scope(opts);
+    [ground_truth, M, obs, recon, opts] = simulate_scope(opts);
+end
 end

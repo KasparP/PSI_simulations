@@ -60,6 +60,8 @@ opts.scope.brightness = 0.25; %average photons per pulse, per pixel, across the 
 opts.debug.magic_align = false; %just give the correct motion parameters to the reconstruction algorithm
 opts.debug.nonoise = false; % set all noise to 0
 
+opts.simName = ''; %can be specified to save the simulation output into its own directory
+
 if nargin %update any options passed as argument
     flds = fieldnames(opts_in);
     for fld_num = 1:length(flds)
@@ -119,14 +121,18 @@ if opts.debug.magic_align || opts.debug.nonoise
     nametags = [nametags 'DEBUG-'];
 end
 filename = ['sim-' nametags datestr(clock,'mm-dd_HH-MM')];
+
 if ~exist([opts.image.dr 'SimulationOutput'], 'dir')
     mkdir([opts.image.dr 'SimulationOutput'])
 end
+if ~exist([opts.image.dr 'SimulationOutput' filesep opts.simname], 'dir')
+    mkdir([opts.image.dr 'SimulationOutput' filesep opts.simname])
+end
 
-while exist([opts.image.dr 'SimulationOutput' filesep filename '.mat'], 'file')
+while exist([opts.image.dr 'SimulationOutput' filesep opts.simname filesep filename '.mat'], 'file')
     filename = [filename '-'];
 end
-save([opts.image.dr 'SimulationOutput' filesep filename], 'ground_truth', 'M', 'obs', 'recon', 'opts'); 
+save([opts.image.dr 'SimulationOutput' filesep opts.simName filesep filename], 'ground_truth', 'M', 'obs', 'recon', 'opts'); 
 
 
 %%
