@@ -34,13 +34,21 @@ opts.debug.nonoise = false; % set all noise to 0
 
 
 
+Ps = [2 4]; %projection types to simulate
+Bs = [1 5 10 20]; %brightness levels to simulate
 
 opts.simname = 'ProjectionTypesAndBrightness';
-
-for p = [2,4]
-    opts.Ptype = [int2str(p) 'lines'];
-for B=[1 5 10 20]
-    opts.scope.brightness = B;
+Pcorrs = cell(length(Ps), length(Bs));
+for p_ix = 1:length(Ps)
+    opts.Ptype = [int2str(Ps(p_ix)) 'lines'];
+for B_ix=1:length(Bs)
+    opts.scope.brightness = Bs(B_ix);
     [ground_truth, M, obs, recon, opts] = simulate_scope(opts);
+    Pcorrs{p_ix,B_ix} = recon_performance(ground_truth, M, obs, recon, opts);
 end
+
+mean_corr = cellfun(@mean, Pcorrs);
+err_corr = cellfun(@(x)(std(x)./sqrt(length(x))), Pcorrs);
+
+keyboard
 end
