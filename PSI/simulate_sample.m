@@ -24,7 +24,7 @@ if opts.do3D
         I2(:,:,plane) = I2tmp;
     end
     mean_int = mean(double(I2(bw)));
-    GT.IM = double(GT.IM)*opts.scope.brightness/mean_int;
+    GT.IM = double(GT.IM).*opts.scope.brightness/mean_int;
     
     clear I2tmp I2 bw%free up memory
 else

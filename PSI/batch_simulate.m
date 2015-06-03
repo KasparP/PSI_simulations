@@ -7,9 +7,9 @@ opts.image.fn = 'Live2-2-2013_13-19-31.tif';
 opts.image.dr = [fileparts(which('simulate_scope')) filesep];
 opts.framerate = 1; %frames/millisecond
 opts.samplerate = 4000; %sample rate in projections (i.e. laser pulses)/millisecond; this should be the laser rep rate
-opts.sim.dur = 10; %duration of simulation, milliseconds
+opts.sim.dur = 1; %duration of simulation, milliseconds
 
-opts.sim.amp = 10; %amplitude of signals, df/F0
+opts.sim.amp = 8; %amplitude of signals, df/F0
 opts.sim.dynamics = 'random';   %'smooth' for motion and activity varying slowly in time, or 'random' for a random bag of frames
 
 opts.image.XYscale = 0.2; %voxel size of loaded image/standard 2P acquisition, microns
@@ -32,23 +32,24 @@ opts.scope.brightness = 10; %average photons per pulse, per pixel, across the ma
 opts.debug.magic_align = true; %just give the correct motion parameters to the reconstruction algorithm
 opts.debug.nonoise = false; % set all noise to 0
 
-
-
 Ps = [2 4]; %projection types to simulate
-Bs = [1 5 10 20]; %brightness levels to simulate
+Bs = [0.1 1 10 40]; %brightness levels to simulate
 
-opts.simname = 'ProjectionTypesAndBrightness';
+opts.simName = 'ProjectionTypesAndBrightness';
+
 Pcorrs = cell(length(Ps), length(Bs));
 for p_ix = 1:length(Ps)
     opts.Ptype = [int2str(Ps(p_ix)) 'lines'];
-for B_ix=1:length(Bs)
-    opts.scope.brightness = Bs(B_ix);
-    [ground_truth, M, obs, recon, opts] = simulate_scope(opts);
-    Pcorrs{p_ix,B_ix} = recon_performance(ground_truth, M, obs, recon, opts);
+    for B_ix=1:length(Bs)
+        opts.scope.brightness = Bs(B_ix);
+        [ground_truth, M, obs, recon, opts] = simulate_scope(opts);
+        Pcorrs{p_ix,B_ix} = recon_performance(ground_truth, M, obs, recon, opts);
+    end
 end
-
 mean_corr = cellfun(@mean, Pcorrs);
 err_corr = cellfun(@(x)(std(x)./sqrt(length(x))), Pcorrs);
 
+figure, plot(mean_corr')
+set(gca, 'xtick',1:length(Bs), 'xticklabel', num2str(Bs'))
+ylabel('Correlation-to-sample')
 keyboard
-end
