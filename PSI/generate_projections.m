@@ -3,9 +3,10 @@ function [P,R] = generate_projections(imagesize, opts)
 %pulse/intensity measurement) used either in simulation of the imaging system or for reconstruction of data
 %different projections can be selected with the 'method' argument
 
+%Simulations indicate the using 4 lines is equivalent to collecting ~10x as many
+%photons while scanning 2 lines. 4 lines is ~0.5 times as good as collecting each pixel
+%separately, per photon.
 
-%	P: a cell array of sparse 2D matrices (Y * X), containing weights that make up the projection
-%       TO DO: switch to a single sparse 2D array (#pixels x #projections)?
 switch opts.Ptype
     case '4lines'
         %line segments crossing the sample along 4 axes spaced by 45 degreed

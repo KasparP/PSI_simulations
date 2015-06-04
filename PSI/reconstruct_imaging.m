@@ -82,8 +82,8 @@ for frame = 1:opts.nframes
     end
     
     %Now do reconstruction
-    shifted = apply_motion(obs.IM, [dX_est, dY_est]);
-    shiftedBW = apply_motion(R.SEG.bw, [dX_est, dY_est]);
+    shifted = apply_motion(obs.IM, [dX_est(frame), dY_est(frame)]);
+    shiftedBW = apply_motion(R.SEG.bw, [dX_est(frame), dY_est(frame)]);
     
     %background intensity
     BG = shifted;
@@ -112,7 +112,7 @@ for frame = 1:opts.nframes
     disp('     Computing inverse...')
     IM_seg = zeros(size(obs.IM,1),size(obs.IM,2), size(R.SEG.seg,2));%extize
     IM_seg(repmat(R.SEG.bw,1,1,size(R.SEG.seg,2))) = R.SEG.seg; %IM_seg is a BIG matrix. no better general way? make sparse?
-    IM_seg = apply_motion(IM_seg, [dX_est, dY_est]); %IM_seg, shifted
+    IM_seg = apply_motion(IM_seg, [dX_est(frame), dY_est(frame)]); %IM_seg, shifted
     P_shift = opts.P' * reshape(IM_seg, [size(IM_seg,1)*size(IM_seg,2), size(R.SEG.seg,2)]);
     
     %estimate using pseudoinverse

@@ -11,6 +11,12 @@ if opts.do3D
     error('We don''t support the 3D case yet');
 end
 
+%shape of unexpected brightness regions
+if opts.sim.unsuspected.N
+    un_kernel = double(getnhood(strel('disk',ceil(1.6/opts.image.XYscale))));
+    un_radius = floor(size(un_kernel,1)/2);
+end
+
 %OBS.IM: morphological data. Will be used in reconstruction. 
 OBS.IM = GT.IM; %for now, we assume the morphological image was a faithful representation of the sample
                     %TO DO: Warp the image, etc.
@@ -24,8 +30,14 @@ for frame = 1:opts.nframes
     %generate the brightness of this frame
     F = GT.seg.seg*(1+GT.activity(:,frame)); %fluorescence intensity of pixels within the mask
     thisframe = GT.IM;
-    thisframe(GT.seg.bw) = F;
+    thisframe(GT.seg.bw) = F; %add fluorescence signal
+    for n = 1:opts.sim.unsuspected.N %add unexpected signal
+        xs = (-un_radius:un_radius) + GT.unsuspected.pos(1,n);
+        ys = (-un_radius:un_radius) + GT.unsuspected.pos(2,n);
+        thisframe(xs,ys) =  thisframe(xs,ys) + un_kernel*opts.scope.brightness*opts.sim.amp*100;
+    end
     GT_movie(:,:,frame) = thisframe; %the ground truth brightness of the sample, without sample motion
+
     
     %shift the frame according to the per-frame motion
     dX = round(GT.motion.pos(1,frame)); dY = round(GT.motion.pos(2,frame));

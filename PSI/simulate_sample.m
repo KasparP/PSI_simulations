@@ -82,4 +82,29 @@ else %random
     GT.activity = opts.sim.amp .* convn(poissrnd(1/(50*opts.framerate), GT.nseeds, max(500*length(kernel), opts.nframes)), kernel ,'same');
     GT.activity = GT.activity(:, randperm(size(GT.activity,2), opts.nframes));
 end
+
+
+%UNSUSPECTED ACTIVITY
+if opts.sim.unsuspected.N
+    GT.unsuspected.pos = nan(2,opts.sim.unsuspected.N); %extize
+   
+    %find a region of the image to put the 'unsuspected' activity, outside the morphological mask 
+    valid_pos = ~imdilate(GT.seg.bw, strel('disk', 0.8/opts.image.XYscale));
+    [X,Y] = meshgrid(1:size(valid_pos,1));
+    radius = size(valid_pos,1)/4;
+    mask = sqrt((X-size(valid_pos,1)/2).^2 + (Y-size(valid_pos,1)/2).^2)<radius;
+    valid_pos = valid_pos & mask;
+    
+    %pick a random spot within the valid region
+    N=1;
+    while N<=opts.sim.unsuspected.N
+         xy= randi(size(valid_pos,1), 1,2);
+         GT.unsuspected.pos(:,N) = xy;
+        if valid_pos(xy(1),xy(2))
+            N = N+1;
+            valid_pos(xy(1),xy(2)) = false;
+        end
+    end
+end
+
 end
