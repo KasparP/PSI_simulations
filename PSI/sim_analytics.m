@@ -60,10 +60,15 @@ for frame = 1:size(R,2)
                 IM_res(:,:,ax) = imrotate(IM_res(:,:,ax), rot_angles(ax), 'bilinear', 'crop');
     end
     IM_res = nanmean(IM_res,3);
-    figure, imshow(IM_res,[])
+    figure, imshow(IM_res.^3,[])
+    
+    %how to threshold image for candidate sites?
+        %simple threshold on cube of average image
+        %demand that all projections > median?
+        %demand that 3/4 projections >median?
     
     %fit the residuals with matrix division optimized for sparsity
-    %we need a new set of bases
+    %Generate a new set of bases
     
     %fit the positive and negative residuals separately, with nonnegative
     %fitting

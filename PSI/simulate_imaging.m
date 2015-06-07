@@ -34,7 +34,7 @@ for frame = 1:opts.nframes
     for n = 1:opts.sim.unsuspected.N %add unexpected signal
         xs = (-un_radius:un_radius) + GT.unsuspected.pos(1,n);
         ys = (-un_radius:un_radius) + GT.unsuspected.pos(2,n);
-        thisframe(xs,ys) =  thisframe(xs,ys) + un_kernel*opts.scope.brightness*opts.sim.amp*100;
+        thisframe(xs,ys) =  thisframe(xs,ys) + un_kernel*opts.scope.brightness*opts.sim.amp*opts.sim.unsuspected.amp;
     end
     GT_movie(:,:,frame) = thisframe; %the ground truth brightness of the sample, without sample motion
 
