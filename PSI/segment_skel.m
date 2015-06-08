@@ -78,15 +78,16 @@ for i = 1:nh_size/2
 end
 
 %convert to seg, a [#seeds x #pixels in BW] matrix
-S.seg = spalloc(sum(bw(:)), length(i1), sum(bw(:))*9); %we use a sparse matrix here
+S.seg = spalloc(numel(bw), length(i1), sum(bw(:))*9); %we use a sparse matrix here
 for seed = 1:length(i1)
     tmp = zeros(size(bw_padded));
     tmp((0:2*nh_size)+i1(seed),(0:2*nh_size)+i2(seed)) = influence(:,:,seed);
-    S.seg(:,seed) = tmp(bw_padded);
+    tmp = tmp(nh_size+1:end-nh_size, nh_size+1:end-nh_size);
+    S.seg(:,seed) = tmp(:);
 end
 
 %error checking: make sure every pixel is influenced by a seed
-no_seed = ~any(S.seg,2);
+no_seed = ~any(S.seg(bw,:),2);
 if any(no_seed)
     %some pixels have not been assigned seeds
     %make an image of these pixels
@@ -100,10 +101,11 @@ end
 
 %normalize
 S.seg = S.seg.^2;
-S.seg = S.seg./repmat(nansum(S.seg,2), [1 length(i1)]);
+S.seg(bw,:) = S.seg(bw,:)./repmat(nansum(S.seg(bw,:),2), [1 length(i1)]);
+
 
 %weight the segmentation by the original image intensity
-S.seg = S.seg.*repmat(image(bw),[1 length(i1)]);
+S.seg(bw,:) = S.seg(bw,:).*repmat(image(bw),[1 length(i1)]);
 
 %output the mask
 S.bw = bw;

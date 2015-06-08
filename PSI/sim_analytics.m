@@ -14,11 +14,11 @@ figure('Name', 'Field of view'), imshow(P_im,[])
 %BASIC ANALYSIS
 if do_basic
 for frame = 1:size(R,2)
-    Pshift_im = apply_motion(P_im, [-R.dX(frame), -R.dY(frame)] );
+    Pshift_im = apply_motion(P_im, [-R.dX(frame), -R.dY(frame)], '2D');
     IM_truth = M(:,:,frame);
     %make the reconstructed image
     IM_est = obs.IM;
-    IM_est(R.SEG.bw) = R.SEG.seg*R.S(:,frame);
+    IM_est(R.SEG.bw) = R.SEG.seg(R.SEG.bw,:)*R.S(:,frame);
 
     figure('Name', 'Truth'), imshow(IM_truth,[]); colormap(cmap)
     figure('Name', 'Reconstruction'), imshow(IM_est,[]); colormap(cmap)
@@ -36,8 +36,8 @@ end
 if do_residuals
 for frame = 1:size(R,2)    
     IM_est = obs.IM;
-    IM_est(R.SEG.bw) = R.SEG.seg*R.S(:,frame);
-    IM_shift = apply_motion(IM_est, [R.dX(frame), R.dY(frame)]);
+    IM_est(R.SEG.bw) = R.SEG.seg(R.SEG.bw,:)*R.S(:,frame);
+    IM_shift = apply_motion(IM_est, [R.dX(frame), R.dY(frame)], '2D');
     
     %estimate residuals in the projection space
     data_est = IM_shift(:)'*opts.P;
@@ -62,17 +62,15 @@ for frame = 1:size(R,2)
     select_pixels = residuals<0; %have some cutoff, -X, set by the noise?
     D_neg = -residuals(select_pixels);
     
-    IM_seg = zeros(size(obs.IM,1),size(obs.IM,2), size(R.SEG.seg,2));%extize
-    IM_seg(repmat(R.SEG.bw,1,1,size(R.SEG.seg,2))) = R.SEG.seg; %IM_seg is a BIG matrix. no better general way? make sparse?
-    IM_seg = apply_motion(IM_seg, [R.dX(frame), R.dY(frame)]); %IM_seg, shifted
-    P_shift = opts.P' * reshape(IM_seg, [size(IM_seg,1)*size(IM_seg,2), size(R.SEG.seg,2)]);
+    IM_seg = apply_motion(R.SEG.seg, [R.dX(frame), R.dY(frame)], '2D'); %IM_seg, shifted
+    P_shift = opts.P' * IM_seg;
     
     %estimate with nonnegative constraint
     S_neg = lsqnonneg(P_shift(select_pixels,:), D_neg);
     
     %reconstruct image of negative residuals
     IM_neg = zeros(size(obs.IM));
-    IM_neg(R.SEG.bw) = R.SEG.seg*S_neg;
+    IM_neg(R.SEG.bw) = R.SEG.seg(R.SEG.bw,:)*S_neg;
     
     figure('Name','Reconstructed Negative Residuals'), imshow(IM_neg,[]);
     keyboard
@@ -83,10 +81,9 @@ for frame = 1:size(R,2)
     %create a mask of the entire background space
     mask_bg = ~R.SEG.bw;
     S_bg = segment_grid(mask_bg);
-    IM_seg_bg = zeros(size(obs.IM,1),size(obs.IM,2), size(S_bg.seg,2));%extize
-    IM_seg_bg(repmat(S_bg.bw,1,1,size(S_bg.seg,2))) = S_bg.seg; %IM_seg is a BIG matrix. no better general way? make sparse?
+    
     IM_seg_bg = apply_motion(IM_seg_bg, [R.dX(frame), R.dY(frame)]); %IM_seg, shifted
-    P_shift_bg = opts.P' * reshape(IM_seg_bg, [size(IM_seg_bg,1)*size(IM_seg_bg,2), size(S_bg.seg,2)]);
+    P_shift_bg = opts.P' * IM_seg_bg;
     
     %solve as an L1-regularized least squares problem
     keyboard

@@ -28,7 +28,7 @@ GT_movie = zeros([size(GT.IM) opts.nframes]);
 for frame = 1:opts.nframes
     disp(['     Frame ' int2str(frame)])
     %generate the brightness of this frame
-    F = GT.seg.seg*(1+GT.activity(:,frame)); %fluorescence intensity of pixels within the mask
+    F = GT.seg.seg(GT.seg.bw,:)*(1+GT.activity(:,frame)); %fluorescence intensity of pixels within the mask
     thisframe = GT.IM;
     thisframe(GT.seg.bw) = F; %add fluorescence signal
     for n = 1:opts.sim.unsuspected.N %add unexpected signal
@@ -41,7 +41,7 @@ for frame = 1:opts.nframes
     
     %shift the frame according to the per-frame motion
     dX = round(GT.motion.pos(1,frame)); dY = round(GT.motion.pos(2,frame));
-    shifted = apply_motion(thisframe, [dX dY]);
+    shifted = apply_motion(thisframe, [dX dY], '2D');
     
     dark_photons = opts.scope.darkrate/opts.samplerate;
     signal_photons = shifted(:)'*opts.P;

@@ -82,8 +82,8 @@ for frame = 1:opts.nframes
     end
     
     %Now do reconstruction
-    shifted = apply_motion(obs.IM, [dX_est(frame), dY_est(frame)]);
-    shiftedBW = apply_motion(R.SEG.bw, [dX_est(frame), dY_est(frame)]);
+    shifted = apply_motion(obs.IM, [dX_est(frame), dY_est(frame)], '2D');
+    shiftedBW = apply_motion(R.SEG.bw, [dX_est(frame), dY_est(frame)], '2D');
     
     %background intensity
     BG = shifted;
@@ -110,10 +110,13 @@ for frame = 1:opts.nframes
     %for every seed, we need a map of that seed onto the shifted
     %mask pixels via the function apply_motion
     disp('     Computing inverse...')
-    IM_seg = zeros(size(obs.IM,1),size(obs.IM,2), size(R.SEG.seg,2));%extize
-    IM_seg(repmat(R.SEG.bw,1,1,size(R.SEG.seg,2))) = R.SEG.seg; %IM_seg is a BIG matrix. no better general way? make sparse?
-    IM_seg = apply_motion(IM_seg, [dX_est(frame), dY_est(frame)]); %IM_seg, shifted
-    P_shift = opts.P' * reshape(IM_seg, [size(IM_seg,1)*size(IM_seg,2), size(R.SEG.seg,2)]);
+%     IM_seg = zeros(size(obs.IM,1),size(obs.IM,2), size(R.SEG.seg,2));%extize
+%     IM_seg(repmat(R.SEG.bw,1,1,size(R.SEG.seg,2))) = R.SEG.seg; %IM_seg is a BIG matrix. no better general way? make sparse?
+ 
+IM_seg = apply_motion(R.SEG.seg, [dX_est(frame), dY_est(frame)], '2D'); %IM_seg, shifted
+P_shift = opts.P' * IM_seg;
+%     P_shifted = apply_motion(reshape(opts.P, size(obs.IM)), -[dX_est(frame), dY_est(frame)]); %HERE WE ARE APPLYING THE INVERSE MOTION TO THE PROJECTIONS INSTEAD OF THE MOTION TO THE SEED MATRIX
+%     P_solve = P_shifted(:)'*R.SEG.seg;
     
     %estimate using pseudoinverse
     %P_inv = pinv(P_shift);
