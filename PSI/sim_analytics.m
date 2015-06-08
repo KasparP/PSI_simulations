@@ -81,14 +81,17 @@ for frame = 1:size(R,2)
     res_corrected = residuals + P_shift*S_neg; %corrected residuals, will be used to estimate locations of unknown sources
     
     %create a mask of the entire background space
-    mask_bg = ~R.seg.bw;
+    mask_bg = ~R.SEG.bw;
     S_bg = segment_grid(mask_bg);
     IM_seg_bg = zeros(size(obs.IM,1),size(obs.IM,2), size(S_bg.seg,2));%extize
     IM_seg_bg(repmat(S_bg.bw,1,1,size(S_bg.seg,2))) = S_bg.seg; %IM_seg is a BIG matrix. no better general way? make sparse?
     IM_seg_bg = apply_motion(IM_seg_bg, [R.dX(frame), R.dY(frame)]); %IM_seg, shifted
     P_shift_bg = opts.P' * reshape(IM_seg_bg, [size(IM_seg_bg,1)*size(IM_seg_bg,2), size(S_bg.seg,2)]);
     
-    %solve as an L1-regularized least squares problem (IDEALLY L0, but how?) 
+    %solve as an L1-regularized least squares problem
+    keyboard
+    
+    
     
     %multiply repmats of the residuals along each axis
     pad = (size(obs.IM,1)-opts.R)/2;

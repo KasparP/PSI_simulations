@@ -7,7 +7,7 @@ function S = segment_grid (mask, image, maxseeds)
 %projection mode
 
 
-ds_min = 2; %minimum downsampling factor
+ds_min = 4; %minimum downsampling factor
 ds_max = 25; %maximum downsampling factor
 
 
@@ -36,10 +36,6 @@ disp(['Seed regions size: ' int2str(dsfactor)])
 
 nh_size = dsfactor;
 
-%pad the mask
-bw_padded = false(size(mask) + 2*nh_size);
-bw_padded(nh_size+1:end-nh_size, nh_size+1:end-nh_size) = mask;
-
 %Initialize the seed pixels ON A UNIFORM GRID:
 [X,Y] = find(ds_im);
 X = (X-1)*dsfactor+dsfactor/2;
@@ -61,17 +57,21 @@ Y = (Y-1)*dsfactor+dsfactor/2;
     [X,Y] = prune_small(X,Y, cutoff);
 
 %recalculate assignments
-D = pdist2([X Y], [Xbw Ybw]);
-[minval, minind] = min(D,[],1);
-    
+minind = nan(1,length(Xbw));
+for i = 1:length(Xbw)
+    [~, minind(i)] = min((X-Xbw(i)).^2 + (Y-Ybw(i)).^2);
+end
+
  %do some things to improve the segmentations:
     %1. break points that represent multiple separate regions into points
     %for each region
     [X,Y] = split_regions(X,Y,Xbw,Ybw, minind);
 
 %recalculate assignments
-D = pdist2([X Y], [Xbw Ybw]);
-[minval, minind] = min(D,[],1);
+minind = nan(1,length(Xbw));
+for i = 1:length(Xbw)
+    [~, minind(i)] = min((X-Xbw(i)).^2 + (Y-Ybw(i)).^2);
+end
 
     %2. split points that are covering a large number of pixels into
     %multiple points
@@ -81,8 +81,11 @@ D = pdist2([X Y], [Xbw Ybw]);
 [X,Y] = optimize_seeds(X,Y,Xbw,Ybw);
 
 %recalculate assignments
-D = pdist2([X Y], [Xbw Ybw]);
-[minval, minind] = min(D,[],1);
+minind = nan(1,length(Xbw));
+for i = 1:length(Xbw)
+    [~, minind(i)] = min((X-Xbw(i)).^2 + (Y-Ybw(i)).^2);
+end
+
 %     figure, imshow(mask);
 %     hold on, scatter(Y,X);
 %     keyboard
@@ -109,6 +112,10 @@ end
 S.bw = mask;
 
 keyboard
+
+%pad the mask
+% bw_padded = false(size(mask) + 2*nh_size);
+% bw_padded(nh_size+1:end-nh_size, nh_size+1:end-nh_size) = mask;
 end
 
 function [X,Y] = optimize_seeds(X,Y,Xbw,Ybw)
@@ -117,8 +124,11 @@ iters = 0;
 while any(abs(Xold-X)>0.1) || any(abs(Yold-Y)>0.1)
     iters = iters+1;
     Xold = X; Yold = Y;
-    D = pdist2([X Y], [Xbw Ybw]);
-    [minval, minind] = min(D,[],1);
+    
+    minind = nan(1,length(Xbw));
+    for i = 1:length(Xbw)
+        [~, minind(i)] = min((X-Xbw(i)).^2 + (Y-Ybw(i)).^2);
+    end
     %reset the seed points to the center of mass of their associated pixels
     for i = 1:length(X)
         X(i) = mean(Xbw(minind==i));
