@@ -7,7 +7,7 @@ function S = segment_grid (mask, image, maxseeds)
 %projection mode
 
 
-ds_min = 10; %minimum downsampling factor
+ds_min = 2; %minimum downsampling factor
 ds_max = 25; %maximum downsampling factor
 
 

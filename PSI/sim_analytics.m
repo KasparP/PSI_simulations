@@ -43,11 +43,52 @@ for frame = 1:size(R,2)
     data_est = IM_shift(:)'*opts.P;
     
     residuals = obs.data_in(:,frame) - data_est';
-    figure, plot(residuals);
+    %adjust for constant offset in the residuals?
+    
+    figure('Name', 'Residuals of Reconstruction'), plot(residuals);
     
     %there is a strong signal in the residuals: residuals are negative
     %where unexpected signal occurs, positive along the lines
     %that pass through unexpected signal, and negative averywhere else
+    
+    
+    %Take negative residuals and assign them to the known seeds
+    %The goal is to 'undo' some of the mixing of the unexpected
+    %signal, which increases signals in first-order related seeds, and
+    %decreases signal in the second-order seeds.
+    %this mixes the decreased signal back onto the first order seeds, which
+    %will then be used to estimate the location of the source.
+    
+    select_pixels = residuals<0; %have some cutoff, -X, set by the noise?
+    D_neg = -residuals(select_pixels);
+    
+    IM_seg = zeros(size(obs.IM,1),size(obs.IM,2), size(R.SEG.seg,2));%extize
+    IM_seg(repmat(R.SEG.bw,1,1,size(R.SEG.seg,2))) = R.SEG.seg; %IM_seg is a BIG matrix. no better general way? make sparse?
+    IM_seg = apply_motion(IM_seg, [R.dX(frame), R.dY(frame)]); %IM_seg, shifted
+    P_shift = opts.P' * reshape(IM_seg, [size(IM_seg,1)*size(IM_seg,2), size(R.SEG.seg,2)]);
+    
+    %estimate with nonnegative constraint
+    S_neg = lsqnonneg(P_shift(select_pixels,:), D_neg);
+    
+    %reconstruct image of negative residuals
+    IM_neg = zeros(size(obs.IM));
+    IM_neg(R.SEG.bw) = R.SEG.seg*S_neg;
+    
+    figure('Name','Reconstructed Negative Residuals'), imshow(IM_neg,[]);
+    keyboard
+    
+    %Now, reproject the negative residuals and add them to the data
+    res_corrected = residuals + P_shift*S_neg; %corrected residuals, will be used to estimate locations of unknown sources
+    
+    %create a mask of the entire background space
+    mask_bg = ~R.seg.bw;
+    S_bg = segment_grid(mask_bg);
+    IM_seg_bg = zeros(size(obs.IM,1),size(obs.IM,2), size(S_bg.seg,2));%extize
+    IM_seg_bg(repmat(S_bg.bw,1,1,size(S_bg.seg,2))) = S_bg.seg; %IM_seg is a BIG matrix. no better general way? make sparse?
+    IM_seg_bg = apply_motion(IM_seg_bg, [R.dX(frame), R.dY(frame)]); %IM_seg, shifted
+    P_shift_bg = opts.P' * reshape(IM_seg_bg, [size(IM_seg_bg,1)*size(IM_seg_bg,2), size(S_bg.seg,2)]);
+    
+    %solve as an L1-regularized least squares problem (IDEALLY L0, but how?) 
     
     %multiply repmats of the residuals along each axis
     pad = (size(obs.IM,1)-opts.R)/2;
@@ -56,11 +97,11 @@ for frame = 1:size(R,2)
     for ax = 1:4 %for each projection axis
                 ax_ixs = (ax-1)*opts.R + 1:ax*opts.R; %the data indices that correspond to this axis
                 IM_res(:,:,ax) = nan(size(obs.IM));
-                IM_res(pad+1:pad+opts.R, pad+1:pad+opts.R,ax) = repmat(residuals(ax_ixs)', opts.R,1);
+                IM_res(pad+1:pad+opts.R, pad+1:pad+opts.R,ax) = repmat(res_corrected(ax_ixs)', opts.R,1);
                 IM_res(:,:,ax) = imrotate(IM_res(:,:,ax), rot_angles(ax), 'bilinear', 'crop');
     end
     IM_res = nanmean(IM_res,3);
-    figure, imshow(IM_res.^3,[])
+    figure('name','Triangulation of unsuspected sources'), imshow(IM_res.^3,[])
     
     %how to threshold image for candidate sites?
         %simple threshold on cube of average image

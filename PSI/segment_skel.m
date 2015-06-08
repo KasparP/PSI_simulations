@@ -50,7 +50,7 @@ i2 = i2(~exclude);
 %D = D(~exclude, ~exclude);
 
 %show the seed points
-if opts.verbose
+if false
     im_disp = zeros(size(bw));
     im_disp(sub2ind(size(bw), i1,i2)) = 1;
     im_disp = conv2(im_disp, ones(3), 'same');
