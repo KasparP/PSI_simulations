@@ -57,10 +57,7 @@ Y = (Y-1)*dsfactor+dsfactor/2;
     [X,Y] = prune_small(X,Y, cutoff);
 
 %recalculate assignments
-minind = nan(1,length(Xbw));
-for i = 1:length(Xbw)
-    [~, minind(i)] = min((X-Xbw(i)).^2 + (Y-Ybw(i)).^2);
-end
+minind = knnsearch([X Y], [Xbw Ybw]);
 
  %do some things to improve the segmentations:
     %1. break points that represent multiple separate regions into points
@@ -68,10 +65,7 @@ end
     [X,Y] = split_regions(X,Y,Xbw,Ybw, minind);
 
 %recalculate assignments
-minind = nan(1,length(Xbw));
-for i = 1:length(Xbw)
-    [~, minind(i)] = min((X-Xbw(i)).^2 + (Y-Ybw(i)).^2);
-end
+minind = knnsearch([X Y], [Xbw Ybw]);
 
     %2. split points that are covering a large number of pixels into
     %multiple points
@@ -81,10 +75,7 @@ end
 [X,Y] = optimize_seeds(X,Y,Xbw,Ybw);
 
 %recalculate assignments
-minind = nan(1,length(Xbw));
-for i = 1:length(Xbw)
-    [~, minind(i)] = min((X-Xbw(i)).^2 + (Y-Ybw(i)).^2);
-end
+minind = knnsearch([X Y], [Xbw Ybw]);
 
 %     figure, imshow(mask);
 %     hold on, scatter(Y,X);
@@ -121,14 +112,13 @@ end
 function [X,Y] = optimize_seeds(X,Y,Xbw,Ybw)
 Xold = inf(size(X)); Yold = inf(size(X));
 iters = 0;
-while any(abs(Xold-X)>0.1) || any(abs(Yold-Y)>0.1)
+
+while iters<20 && (any(abs(Xold-X)>0.1) || any(abs(Yold-Y)>0.1))
     iters = iters+1;
     Xold = X; Yold = Y;
     
-    minind = nan(1,length(Xbw));
-    for i = 1:length(Xbw)
-        [~, minind(i)] = min((X-Xbw(i)).^2 + (Y-Ybw(i)).^2);
-    end
+    minind = knnsearch([X Y], [Xbw Ybw]);
+    
     %reset the seed points to the center of mass of their associated pixels
     for i = 1:length(X)
         X(i) = mean(Xbw(minind==i));
