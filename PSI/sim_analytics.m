@@ -73,7 +73,6 @@ for frame = 1:size(R,2)
     IM_neg(R.SEG.bw) = R.SEG.seg(R.SEG.bw,:)*S_neg;
     
     figure('Name','Reconstructed Negative Residuals'), imshow(IM_neg,[]);
-    keyboard
     
     %Now, reproject the negative residuals and add them to the data
     res_corrected = residuals + P_shift*S_neg; %corrected residuals, will be used to estimate locations of unknown sources
@@ -82,7 +81,7 @@ for frame = 1:size(R,2)
     mask_bg = ~R.SEG.bw;
     S_bg = segment_grid(mask_bg);
     
-    IM_seg_bg = apply_motion(IM_seg_bg, [R.dX(frame), R.dY(frame)]); %IM_seg, shifted
+    IM_seg_bg = apply_motion(S_bg.seg, [R.dX(frame), R.dY(frame)], '2D'); %IM_seg, shifted
     P_shift_bg = opts.P' * IM_seg_bg;
     
     %solve as an L1-regularized least squares problem

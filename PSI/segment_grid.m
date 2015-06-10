@@ -81,7 +81,6 @@ minind = knnsearch([X Y], [Xbw Ybw]);
 %     hold on, scatter(Y,X);
 %     keyboard
 
-keyboard
 
 % %get the local neighbourhoods for each seed point
 % nhood = zeros(dsfactor,dsfactor,length(X));
@@ -94,27 +93,35 @@ keyboard
 
 %assemble the complete map
 %convert to seg, a [#seeds x #pixels in BW] matrix
-S.seg = spalloc(sum(mask(:)), length(X), sum(mask(:))); %we use a sparse matrix here
+
+%accumulate the indexes for the sparse matrix
+indsX = zeros(1, sum(mask(:)));
+indsY = zeros(1, sum(mask(:)));
+vals = ones(1,sum(mask(:)));
+ix = 0;
 for seed = 1:length(X)
-    tmp = zeros(size(mask));
-    tmp(sub2ind(size(mask),Xbw(minind==seed),Ybw(minind==seed))) = 1;
-    S.seg(:,seed) = tmp(mask);
+    X_ixs = Xbw(minind==seed);
+    Y_ixs = Ybw(minind==seed);
+    indsX(ix+1:ix+length(X_ixs)) = sub2ind(size(mask),X_ixs, Y_ixs);
+    indsY(ix+1:ix+length(X_ixs)) = seed;
+    ix = ix+length(X_ixs);
 end
+%build the sparse matrix
 S.bw = mask;
+S.seg = sparse(indsX,indsY,vals,numel(mask),length(X));
 
-keyboard
-
-%pad the mask
-% bw_padded = false(size(mask) + 2*nh_size);
-% bw_padded(nh_size+1:end-nh_size, nh_size+1:end-nh_size) = mask;
 end
 
 function [X,Y] = optimize_seeds(X,Y,Xbw,Ybw)
+XY_im = zeros(max(max(X),max(Xbw)),max(max(Y),max(Ybw)));
+XY_im(sub2ind(size(XY_im),round(X),round(Y))) = 1:length(X);
+
 Xold = inf(size(X)); Yold = inf(size(X));
 iters = 0;
-
+minind = zeros(1,length(Xbw));
 while iters<20 && (any(abs(Xold-X)>0.1) || any(abs(Yold-Y)>0.1))
-    iters = iters+1;
+    tic
+    iters = iters+1
     Xold = X; Yold = Y;
     
     minind = knnsearch([X Y], [Xbw Ybw]);
@@ -124,6 +131,7 @@ while iters<20 && (any(abs(Xold-X)>0.1) || any(abs(Yold-Y)>0.1))
         X(i) = mean(Xbw(minind==i));
         Y(i) = mean(Ybw(minind==i));
     end
+    toc
 end
 end
 
