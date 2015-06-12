@@ -79,13 +79,35 @@ for frame = 1:size(R,2)
     
     %create a mask of the entire background space
     mask_bg = ~R.SEG.bw;
-    S_bg = segment_grid(mask_bg);
+    maxseeds = sum((opts.P'*mask_bg(:)) >0.5);
+    S_bg = segment_grid(mask_bg,[],inf, false);
     
     IM_seg_bg = apply_motion(S_bg.seg, [R.dX(frame), R.dY(frame)], '2D'); %IM_seg, shifted
     P_shift_bg = opts.P' * IM_seg_bg;
     
+    %remove the seeds that don't overlap the imaging region
+    select = any(P_shift_bg,1);
+    
+    [lambda_max] = find_lambdamax_l1_ls_nonneg(P_shift_bg(:,select)',res_corrected);
     %solve as an L1-regularized least squares problem
-    keyboard
+    [x,status,history] = l1_ls_nonneg(P_shift_bg(:,select),res_corrected,lambda_max*1E-2);
+    
+    x2 = zeros(size(S_bg.seg,2),1);
+    x2(select) = x;
+    
+    %reconstruct the image
+    reconstructed = reshape(IM_seg_bg*x2, size(obs.IM,1), size(obs.IM,2));
+    
+    %smooth
+    h = fspecial('gaussian', 4, 4);
+    recon2 = imfilter(reconstructed, h);
+    addmask = recon2>prctile(recon2(:), 99.8);
+    addmask = imopen(addmask, strel('disk',2));
+    
+    %we will be adding points to the segmentation
+    numseeds = 3* sum(addmask(:))/sum(R.SEG.bw(:)) * size(R.SEG.seg,2);
+    add_seg = segment_grid(addmask,[], numseeds, true);
+    
     
     
     
@@ -102,18 +124,10 @@ for frame = 1:size(R,2)
     IM_res = nanmean(IM_res,3);
     figure('name','Triangulation of unsuspected sources'), imshow(IM_res.^3,[])
     
-    %how to threshold image for candidate sites?
-        %simple threshold on cube of average image
-        %demand that all projections > median?
-        %demand that 3/4 projections >median?
     
-    %fit the residuals with matrix division optimized for sparsity
     %Generate a new set of bases
     
-    %fit the positive and negative residuals separately, with nonnegative
-    %fitting
-    %positive residuals should lie outside the morphological mask
-    
+
     keyboard 
 end
 end

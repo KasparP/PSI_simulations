@@ -1,4 +1,4 @@
-function S = segment_grid (mask, image, maxseeds)
+function S = segment_grid (mask, image, maxseeds, dooptimize)
 
 %segments an image on a grid
 %the seed regions will only fall within the mask
@@ -7,18 +7,19 @@ function S = segment_grid (mask, image, maxseeds)
 %projection mode
 
 
-ds_min = 4; %minimum downsampling factor
+ds_min = 3; %minimum downsampling factor
 ds_max = 25; %maximum downsampling factor
 
 
 %count the number of projections that hit the mask
-B = spdiags(mask); B2 = spdiags(flipud(mask));
-nsamples = sum(any(mask,1)) + sum(any(mask,2)) + size(B,2) + size(B2,2);
 
+nsamples = 4*size(mask,1);
 if nargin>2
-    nsamples = min(nsamples,maxseeds);
+    nsamples = maxseeds;
 end
-
+if nargin<4
+    dooptimize = true;
+end
 
 %estimate the appropriate downsampling factor
 done = false;
@@ -50,30 +51,31 @@ Y = (Y-1)*dsfactor+dsfactor/2;
 
 %optimize location of seeds
 [Xbw, Ybw] = find(mask);
-[X,Y] = optimize_seeds(X,Y,Xbw,Ybw);
-
+if dooptimize
+    [X,Y] = optimize_seeds(X,Y,Xbw,Ybw);
+    
     %0. remove points that are very crowded
     cutoff = dsfactor/2; %we'll prune points that are closer together than this number
     [X,Y] = prune_small(X,Y, cutoff);
-
-%recalculate assignments
-minind = knnsearch([X Y], [Xbw Ybw]);
-
- %do some things to improve the segmentations:
+    
+    %recalculate assignments
+    minind = knnsearch([X Y], [Xbw Ybw]);
+    
+    %do some things to improve the segmentations:
     %1. break points that represent multiple separate regions into points
     %for each region
     [X,Y] = split_regions(X,Y,Xbw,Ybw, minind);
-
-%recalculate assignments
-minind = knnsearch([X Y], [Xbw Ybw]);
-
+    
+    %recalculate assignments
+    minind = knnsearch([X Y], [Xbw Ybw]);
+    
     %2. split points that are covering a large number of pixels into
     %multiple points
     [X,Y] = split_big(X,Y,Xbw,Ybw, minind);
-
+    
     %reoptimize the seeds
-[X,Y] = optimize_seeds(X,Y,Xbw,Ybw);
-
+    [X,Y] = optimize_seeds(X,Y,Xbw,Ybw);
+end
 %recalculate assignments
 minind = knnsearch([X Y], [Xbw Ybw]);
 
@@ -94,26 +96,37 @@ minind = knnsearch([X Y], [Xbw Ybw]);
 %assemble the complete map
 %convert to seg, a [#seeds x #pixels in BW] matrix
 
-%accumulate the indexes for the sparse matrix
-indsX = zeros(1, sum(mask(:)));
-indsY = zeros(1, sum(mask(:)));
+% S.seg = spalloc(numel(mask),length(X), sum(mask(:)));
+% for i = 1:length(Xbw)
+%    S.seg(sub2ind(size(mask),Xbw(i), Ybw(i)), minind(i)) = 1;
+% end
+
+indsX = sub2ind(size(mask),Xbw, Ybw);
+indsY = minind;
 vals = ones(1,sum(mask(:)));
-ix = 0;
-for seed = 1:length(X)
-    X_ixs = Xbw(minind==seed);
-    Y_ixs = Ybw(minind==seed);
-    indsX(ix+1:ix+length(X_ixs)) = sub2ind(size(mask),X_ixs, Y_ixs);
-    indsY(ix+1:ix+length(X_ixs)) = seed;
-    ix = ix+length(X_ixs);
-end
-%build the sparse matrix
-S.bw = mask;
 S.seg = sparse(indsX,indsY,vals,numel(mask),length(X));
+S.bw = mask;
+
+% %accumulate the indexes for the sparse matrix
+% indsX = zeros(1, sum(mask(:)));
+% indsY = zeros(1, sum(mask(:)));
+% vals = ones(1,sum(mask(:)));
+% ix = 0;
+% for seed = 1:length(X)
+%     X_ixs = Xbw(minind==seed);
+%     Y_ixs = Ybw(minind==seed);
+%     indsX(ix+1:ix+length(X_ixs)) = sub2ind(size(mask),X_ixs, Y_ixs);
+%     indsY(ix+1:ix+length(X_ixs)) = seed;
+%     ix = ix+length(X_ixs);
+% end
+%build the sparse matrix
+
+
 
 end
 
 function [X,Y] = optimize_seeds(X,Y,Xbw,Ybw)
-XY_im = zeros(max(max(X),max(Xbw)),max(max(Y),max(Ybw)));
+XY_im = zeros(ceil(max(max(X),max(Xbw))),ceil(max(max(Y),max(Ybw))));
 XY_im(sub2ind(size(XY_im),round(X),round(Y))) = 1:length(X);
 
 Xold = inf(size(X)); Yold = inf(size(X));
@@ -128,6 +141,9 @@ while iters<20 && (any(abs(Xold-X)>0.1) || any(abs(Yold-Y)>0.1))
     
     %reset the seed points to the center of mass of their associated pixels
     for i = 1:length(X)
+        if isnan(mean(Xbw(minind==i)))
+            keyboard
+        end
         X(i) = mean(Xbw(minind==i));
         Y(i) = mean(Ybw(minind==i));
     end

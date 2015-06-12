@@ -63,12 +63,12 @@ function [x,status,history] = l1_ls_nonneg(A,varargin)
 
 % IPM PARAMETERS
 MU              = 2;        % updating parameter of t
-MAX_NT_ITER     = 400;      % maximum IPM (Newton) iteration
+MAX_NT_ITER     = 4000;      % maximum IPM (Newton) iteration
 
 % LINE SEARCH PARAMETERS
 ALPHA           = 0.01;     % minimum fraction of decrease in the objective
 BETA            = 0.5;      % stepsize decrease factor
-MAX_LS_ITER     = 100;      % maximum backtracking line search iteration
+MAX_LS_ITER     = 400;      % maximum backtracking line search iteration
 
 % VARIABLE ARGUMENT HANDLING
 % if the second argument is a matrix or an operator, the calling sequence is
