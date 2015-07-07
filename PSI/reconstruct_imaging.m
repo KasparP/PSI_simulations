@@ -123,6 +123,8 @@ P_shift = opts.P' * IM_seg;
     %S = P_inv*D_bs;
     
     %estimate with nonnegative constraint
+    % SRINI replace with different solver which incorporates various forms
+    % of regularization
     R.S(:,frame) = lsqnonneg(P_shift, D_bs); %S is the estimate of the seed intensities
 end
 R.dX = dX_est; R.dY = dY_est;
