@@ -198,7 +198,7 @@ function [X,Y] = split_regions(X,Y,Xbw,Ybw, minind)
 end
 
 function [X,Y] = split_big(X,Y,Xbw,Ybw, minind)
-    [numpoints, edges]= histcounts(minind, 1:length(X));
+    [numpoints]= histc(minind, 1:length(X));
     M = median(numpoints);
     
     toobig = find(numpoints>(2*M));
