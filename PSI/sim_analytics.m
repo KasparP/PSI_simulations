@@ -72,7 +72,7 @@ for frame = 1:size(R,2)
     IM_neg = zeros(size(obs.IM));
     IM_neg(R.SEG.bw) = R.SEG.seg(R.SEG.bw,:)*S_neg;
     
-    figure('Name','Reconstructed Negative Residuals'), imshow(IM_neg,[]);
+    figure('Name','Reconstructed Negative Residuals (estimate of IM_diff from observed data only)'), imshow(IM_neg,[]);
     
     %Now, reproject the negative residuals and add them to the data
     res_corrected = residuals + P_shift*S_neg; %corrected residuals, will be used to estimate locations of unknown sources
@@ -101,33 +101,15 @@ for frame = 1:size(R,2)
     %smooth
     h = fspecial('gaussian', 4, 4);
     recon2 = imfilter(reconstructed, h);
-    addmask = recon2>prctile(recon2(:), 99.8);
+    addmask = recon2>5*std(recon2(:));
     addmask = imopen(addmask, strel('disk',2));
+    
+    figure('Name', 'Estimate of locations of unexpected activity'), imshow(addmask)
     
     %we will be adding points to the segmentation
     numseeds = 3* sum(addmask(:))/sum(R.SEG.bw(:)) * size(R.SEG.seg,2);
     add_seg = segment_grid(addmask,[], numseeds, true);
     
-    
-    
-    
-    %multiply repmats of the residuals along each axis
-    pad = (size(obs.IM,1)-opts.R)/2;
-    IM_res = nan([size(obs.IM) 4]);
-    rot_angles = [0 270 45 135];
-    for ax = 1:4 %for each projection axis
-                ax_ixs = (ax-1)*opts.R + 1:ax*opts.R; %the data indices that correspond to this axis
-                IM_res(:,:,ax) = nan(size(obs.IM));
-                IM_res(pad+1:pad+opts.R, pad+1:pad+opts.R,ax) = repmat(res_corrected(ax_ixs)', opts.R,1);
-                IM_res(:,:,ax) = imrotate(IM_res(:,:,ax), rot_angles(ax), 'bilinear', 'crop');
-    end
-    IM_res = nanmean(IM_res,3);
-    figure('name','Triangulation of unsuspected sources'), imshow(IM_res.^3,[])
-    
-    
-    %Generate a new set of bases
-    
-
-    keyboard 
+    %to do: redo reconstruction with expanded segmentation
 end
 end
