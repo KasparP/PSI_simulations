@@ -201,7 +201,7 @@ function [X,Y] = split_big(X,Y,Xbw,Ybw, minind)
     [numpoints]= histc(minind, 1:length(X));
     M = median(numpoints);
     
-    toobig = find(numpoints>(2*M));
+    toobig = find(numpoints'>(2*M));
     for i = toobig
         [vecs, vals] = eig(cov(Xbw(minind==i),Ybw(minind==i)));
         [maxval, maxind] = max(diag(vals));
