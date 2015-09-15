@@ -1,4 +1,4 @@
-function [x, history] = prox_matrix_l1(D, b, lambda, rho, alpha, MAX_ITER)
+function [x, z, u, history] = prox_matrix_l1(D, b, lambda, rho, alpha, MAX_ITER, x0, z0, u0)
 % total_variation  Solve total variation minimization via ADMM
 %
 % [x, history] = total_variation(b, lambda, rho, alpha)
@@ -44,9 +44,15 @@ n = length(b);
 
 %% ADMM solver
 
-x = zeros(n,1);
-z = zeros(n,1);
-u = zeros(n,1);
+if ~exist('x','var') || isempty(x),
+    x = zeros(n,1);
+end
+if ~exist('z','var') || isempty(z),
+    z = zeros(n,1);
+end
+if ~exist('u','var') || isempty(u),
+    u = zeros(n,1);
+end
 
 if ~QUIET
     fprintf('%3s\t%10s\t%10s\t%10s\t%10s\t%10s\n', 'iter', ...

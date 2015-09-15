@@ -12,3 +12,6 @@ M1bar = Q2'*M1*Q3;
 Xbar =  M1bar ./ (1 + D2*D3');
 
 X = Q2*Xbar*Q3';
+
+
+end
