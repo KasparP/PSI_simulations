@@ -1,6 +1,7 @@
 function R = reconstruct_imaging(obs,opts)
 %Estimates the intensity pattern of the sample given the observations
 
+keyboard
 %the expected projection:
 EXP = obs.IM(:)'*opts.P; %Expected data. In final form, this will take into account the dF/F0 in previous frame, etc.
 

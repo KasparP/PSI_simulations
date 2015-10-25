@@ -3,7 +3,7 @@ function S = solve_S_Pfun(P,F,C,S0,maxit)
 % S + \sum_t P_t^T * P_t * S * F_t*F_t^T = C
 
 if ~exist('maxit','var') || isempty(maxit),
-	maxit = 20;
+	maxit = 1;
 end
 tol = 1e-12;
 

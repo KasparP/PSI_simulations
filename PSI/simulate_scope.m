@@ -79,9 +79,10 @@ if opts.debug.magic_align
 end
 
 disp('Performing reconstruction.')
-tic
-recon = reconstruct_imaging(obs,opts);
-toc
+recon = reconstruct_imaging_ADMM(obs,opts,ground_truth);
+% tic
+% recon = reconstruct_imaging(obs,opts);
+% toc
 
 %%
 %save the output

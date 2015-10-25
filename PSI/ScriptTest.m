@@ -1,7 +1,7 @@
-Nproj = 100;
-Nvox = 25*25;
-Nsrc = 10;
-Nt = 100;
+Nproj = 512*4;
+Nvox = 512*512;
+Nsrc = 400;
+Nt = 1;
 
 % %% Test solve_A_X_BXC.m
 
@@ -29,18 +29,18 @@ end
 toc
 
 fprintf('Generating fake Sylvester data...'),tic
-XS = prox_matrix(rand(Nvox,Nsrc),2,@prox_maxk);
+SX = prox_matrix(rand(Nvox,Nsrc),2,@prox_maxk);
 C = rand(Nvox,Nsrc);
 for it = 1:Nt,
 	% A(:,:,it) = P(:,:,it)'*P(:,:,it);
 	% B(:,:,it) = Fu(:,it)*Fu(:,it)';
-	C = C + P(:,:,it)'*P(:,:,it)*XS*Fu(:,it)*Fu(:,it)';
+	C = C + P(:,:,it)'*(P(:,:,it)*SX*Fu(:,it))*Fu(:,it)';
 end
 toc
 
 fprintf('Solving the Sylvester system...'),tic
-XShat = solve_S(P,Fu,C,0*XS+rand(Nvox,Nsrc));
-subplot(211),imagesc(XS')
+XShat = solve_S(P,Fu,C,0*SX+rand(Nvox,Nsrc));
+subplot(211),imagesc(SX')
 subplot(212),imagesc(XShat')
 toc
 

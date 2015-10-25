@@ -94,5 +94,9 @@ Sk = solve_S(P,Fk,C,Sk);
 		l_aug = 0;
 	end
 
+	function Pmotioncorrect = Pit(it)
+		Pmotioncorrect = P;
+	end
+
 
 end
