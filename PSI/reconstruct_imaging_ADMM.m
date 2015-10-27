@@ -72,10 +72,9 @@ for iter = 1:nIter,
 
 	% subsample in time
 	tidx = randsample(T,Nframes)';
+	tidx2 = tidx;
 	if rem(iter,50)==1,
 		tidx2=1:T;
-	else,
-		tidx2=tidx;
 	end
 
 	fprintf('Pre-computing P*[Sk*Fk+Su*Fu]... '), tic
@@ -90,28 +89,25 @@ for iter = 1:nIter,
 	fprintf('done. '), toc
 
 	X(:,tidx2) = prox_DKL(Y(:,tidx2),Xhat(:,tidx2)-U_X(:,tidx2),rho);
+	U_X_PSFk(:,tidx2) = U_X(:,tidx2)+X(:,tidx2)-PSFk(:,tidx2);
+	U_X_PSFu(:,tidx2) = U_X(:,tidx2)+X(:,tidx2)-PSFu(:,tidx2);
+	% U_X_PSFk = X-PSFk-U_X;
+	% U_X_PSFu = X-PSFu-U_X;
 
 	Fu_nuc = prox_matrix(Fu-U_Fu_nuc,lambdaFu_nuc/rho,@prox_l1);
 	Fk_nuc = prox_matrix(Fk-U_Fk_nuc,lambdaFk_nuc/rho,@prox_l1);
 
 	% [Fu_TF, Fu_TF_z, Fu_TF_u] = prox_matrix_L1(D,Fu-U_Fu_TF,lambdaFu_TF,rho,1,10,Fu_TF,Fu_TF_z,Fu_TF_u);
 	% [Fk_TF, Fk_TF_z, Fk_TF_u] = prox_matrix_L1(D,Fk-U_Fk_TF,lambdaFk_TF,rho,1,10,Fk_TF,Fk_TF_z,Fk_TF_u);
-	%Fu_TF = Fu-U_Fu_TF;
-	%Fk_TF = Fk-U_Fk_TF;
 
-	Fu_nn(:,tidx) = max(0,Fu(:,tidx)-U_Fu_nn(:,tidx));
-	Fk_nn(:,tidx) = max(0,Fk(:,tidx)-U_Fk_nn(:,tidx));
+	Fu_nn(:,tidx2) = max(0,Fu(:,tidx2)-U_Fu_nn(:,tidx2));
+	Fk_nn(:,tidx2) = max(0,Fk(:,tidx2)-U_Fk_nn(:,tidx2));
 
 	% rectify, and normalize to 1
 	Su_nn = max(0,Su-U_Su_nn);
 	Su_nn = bsxfun(@times,Su_nn,1./sum(Su_nn,1));
 	Sk_nn = max(0,Sk-U_Sk_nn);
 	Sk_nn = bsxfun(@times,Sk_nn,1./sum(Sk_nn,1));
-
-	U_X_PSFk(:,tidx) = U_X(:,tidx)+X(:,tidx)-PSFk(:,tidx);
-	U_X_PSFu(:,tidx) = U_X(:,tidx)+X(:,tidx)-PSFu(:,tidx);
-	% U_X_PSFk = X-PSFk-U_X;
-	% U_X_PSFu = X-PSFu-U_X;
 
 	%% Update consensus variables
 	fprintf('Estimating F, t='), tic
@@ -167,11 +163,12 @@ for iter = 1:nIter,
 		loss_gt(iter) = 0;
 	end
 	fprintf('[Iter: %d] Loss: %f, Loss aug: %f, Loss gt: %f\n\n',iter,loss(iter),loss_aug(iter),loss_gt(iter))
+	tvec = 2:iter;
 	subplot(221)
-	plot(loss(1:iter))
+	plot(tvec,loss(tvec:iter))
 	title('loss')
 	subplot(222)
-	plot(loss_aug(1:iter))
+	plot(tvec,loss_aug(tvec))
 	title('augmented loss')
 	subplot(223)
 	imagesc(Sk'*Sk0)
@@ -197,8 +194,8 @@ keyboard
 		l = 0;
 
 		% primary loss: the KL divergence between Y and Xhat
-		l_Poiss = Y(:,tidx).*(log(Y(:,tidx))-log(Xhat_nn(:,tidx)));
-		l_Poiss = sum(l_Poiss(isfinite(l_Poiss))) + sum(sum(Xhat_nn(:,tidx)-Y(:,tidx)));
+		l_Poiss = Y(:,tidx2).*(log(Y(:,tidx2))-log(Xhat_nn(:,tidx2)));
+		l_Poiss = sum(l_Poiss(isfinite(l_Poiss))) + sum(sum(Xhat_nn(:,tidx2)-Y(:,tidx2)));
 
 		% if (l_Poiss < 0) || ~isfinite(l_Poiss),
 		% 	keyboard
@@ -220,9 +217,9 @@ keyboard
 		l_aug = 0;
 
 		% primary loss: the KL divergence between Y and X
-		l_Poiss = Y(:,tidx).*(log(Y(:,tidx))-log(X(:,tidx)));
-		l_Poiss = sum(l_Poiss(isfinite(l_Poiss))) + sum(sum(X(:,tidx)-Y(:,tidx)));
-		l_X = (rho/2)*norm(Xhat(:,tidx)-X(:,tidx)+U_X(:,tidx),'fro');
+		l_Poiss = Y(:,tidx2).*(log(Y(:,tidx2))-log(X(:,tidx2)));
+		l_Poiss = sum(l_Poiss(isfinite(l_Poiss))) + sum(sum(X(:,tidx2)-Y(:,tidx2)));
+		l_X = (rho/2)*norm(Xhat(:,tidx2)-X(:,tidx2)+U_X(:,tidx2),'fro');
 
 		l_Fk = 0;
 		l_Fk = l_Fk + lambdaFk_nuc*sum(svd(Fk_nuc));
