@@ -1,4 +1,4 @@
-function S = solve_S_Pfun(P,F,C,S0,maxit)
+function S = solve_S_Pfun(P,F,C,S0,tidx,maxit)
 % Solve the generalized system of simultaneous Sylvester equations
 % S + \sum_t P_t^T * P_t * S * F_t*F_t^T = C
 
@@ -19,7 +19,7 @@ S = reshape(S,szS);
 function Chat = Afun(S)
 	S = reshape(S,szS);
 	Chat = S;
-	for it = 1:T,
+	for it = tidx,
 		Chat = Chat + P(it)'*(P(it)*(S*F(:,it)))*F(:,it)';
 	end
 	Chat = reshape(Chat,prodszS,1);

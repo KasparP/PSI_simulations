@@ -1,17 +1,18 @@
 function R = reconstruct_imaging(obs,opts,nIter,groundtruth)
 %Estimates the intensity pattern of the sample given the observations
 
-T=100;
+Nframes = 10;
 
-rho = 1e0;
+rho = 1e-3
 lambdaFk_nuc = 1e-10;
 lambdaFu_nuc = 1e-10;
 lambdaFk_TF = 1e-10;
 lambdaFu_TF = 1e-10;
 
-obs.data_in = obs.data_in(:,1:T);
+% obs.data_in = obs.data_in(:,1:T);
 mask = groundtruth.seg.bw(:)>0;
 Nvoxk = sum(mask);
+obs.data_in = opts.P(mask,:)'*groundtruth.seg.seg(mask,:)*groundtruth.activity;
 
 [Nvox,Np] = size(opts.P);
 [Np,T] = size(obs.data_in);
@@ -21,20 +22,23 @@ Nsu = size(groundtruth.unsuspected.pos,2);
 
 Sk0 = groundtruth.seg.seg(mask,:);
 Fk0 = groundtruth.activity(:,1:T);
-Y = opts.P(mask,:)'*groundtruth.seg.seg(mask,:)*groundtruth.activity(:,1:T);
 
 %%
 fprintf('Initializing variables...'),tic
 
-% Y = obs.data_in;
+Y = obs.data_in;
 P0 = opts.P';
-Sk = 0e-10*rand(Nvoxk,Nsk)+Sk0;
-Fk = 0e-1*rand(Nsk,T)+Fk0;
 
-Su = 1e-2*rand(Nvox,Nsu);
-Fu = 1e-2*rand(Nsu,T);
+X = zeros(Np,T);
+Xhat = zeros(Np,T);
+Xhat_nn = zeros(Np,T);
 
-[Np T] = size(Y);
+Sk = 1e-3*rand(Nvoxk,Nsk);%+Sk0;
+Fk = 5e-1*rand(Nsk,T);%+Fk0;
+
+Su = 1e-3*rand(Nvox,Nsu);
+Fu = 5e-2*rand(Nsu,T);
+
 [Np Nvox] = size(P0);
 [Nsu T] = size(Fu);
 [Nsk T] = size(Fk);
@@ -63,20 +67,29 @@ U_Sk_nn = 0*ones(size(Sk));
 fprintf(' done. '), toc
 
 
+	tidx = randsample(T,Nframes)';
 for iter = 1:nIter,
+
+	% subsample in time
+	tidx = randsample(T,Nframes)';
+	if rem(iter,50)==1,
+		tidx2=1:T;
+	else,
+		tidx2=tidx;
+	end
 
 	fprintf('Pre-computing P*[Sk*Fk+Su*Fu]... '), tic
 	% b=0;
-	for it = 1:T,
+	for it = tidx2,
 		PSFu(:,it) = Pu(it)*(Su*Fu(:,it));
 		PSFk(:,it) = Pk(it)*(Sk*Fk(:,it));
 		Xhat_nn(:,it) = Pu(it)*(max(Su,0)*max(Fu(:,it),0)) + Pk(it)*(max(Sk,0)*max(Fk(:,it),0));
 		% fprintf([repmat('\b',1,b)]); b=fprintf('%d',it);
 	end
-	Xhat = PSFu + PSFk;
+	Xhat(:,tidx2) = PSFu(:,tidx2) + PSFk(:,tidx2);
 	fprintf('done. '), toc
 
-	X = prox_DKL(Y,Xhat-U_X,rho);
+	X(:,tidx2) = prox_DKL(Y(:,tidx2),Xhat(:,tidx2)-U_X(:,tidx2),rho);
 
 	Fu_nuc = prox_matrix(Fu-U_Fu_nuc,lambdaFu_nuc/rho,@prox_l1);
 	Fk_nuc = prox_matrix(Fk-U_Fk_nuc,lambdaFk_nuc/rho,@prox_l1);
@@ -86,8 +99,8 @@ for iter = 1:nIter,
 	%Fu_TF = Fu-U_Fu_TF;
 	%Fk_TF = Fk-U_Fk_TF;
 
-	Fu_nn = max(0,Fu-U_Fu_nn);
-	Fk_nn = max(0,Fk-U_Fk_nn);
+	Fu_nn(:,tidx) = max(0,Fu(:,tidx)-U_Fu_nn(:,tidx));
+	Fk_nn(:,tidx) = max(0,Fk(:,tidx)-U_Fk_nn(:,tidx));
 
 	% rectify, and normalize to 1
 	Su_nn = max(0,Su-U_Su_nn);
@@ -95,21 +108,21 @@ for iter = 1:nIter,
 	Sk_nn = max(0,Sk-U_Sk_nn);
 	Sk_nn = bsxfun(@times,Sk_nn,1./sum(Sk_nn,1));
 
-	U_X_PSFk = U_X+X-PSFk;
-	U_X_PSFu = U_X+X-PSFu;
+	U_X_PSFk(:,tidx) = U_X(:,tidx)+X(:,tidx)-PSFk(:,tidx);
+	U_X_PSFu(:,tidx) = U_X(:,tidx)+X(:,tidx)-PSFu(:,tidx);
 	% U_X_PSFk = X-PSFk-U_X;
 	% U_X_PSFu = X-PSFu-U_X;
 
 	%% Update consensus variables
 	fprintf('Estimating F, t='), tic
 	b=0;
-	for it = 1:T,
+	for it = tidx2,
 		PSu = Pu(it)*Su;
 		PSk = Pk(it)*Sk;
 		% Fu(:,it) = (PSu'*PSu+3*eye(Nsu)) \ (PSu'*U_X_PSFk(:,it) - (U_Fu_nuc(:,it)+U_Fu_TF(:,it)+U_Fu_nuc(:,it)) + (Fu_nuc(:,it)+Fu_TF(:,it)+Fu_nn(:,it)));
 		% Fk(:,it) = (PSk'*PSk+3*eye(Nsk)) \ (PSk'*U_X_PSFu(:,it) - (U_Fk_nuc(:,it)+U_Fk_TF(:,it)+U_Fk_nuc(:,it)) + (Fk_nuc(:,it)+Fk_TF(:,it)+Fk_nn(:,it)));
-		% Fu(:,it) = (PSu'*PSu+2*eye(Nsu)) \ (PSu'*U_X_PSFk(:,it) + (U_Fu_nuc(:,it)+U_Fu_nuc(:,it)) + (Fu_nuc(:,it)+Fu_nn(:,it)));
-		% Fk(:,it) = (PSk'*PSk+2*eye(Nsk)) \ (PSk'*U_X_PSFu(:,it) + (U_Fk_nuc(:,it)+U_Fk_nuc(:,it)) + (Fk_nuc(:,it)+Fk_nn(:,it)));
+		Fu(:,it) = (PSu'*PSu+2*eye(Nsu)) \ (PSu'*U_X_PSFk(:,it) + (U_Fu_nuc(:,it)+U_Fu_nuc(:,it)) + (Fu_nuc(:,it)+Fu_nn(:,it)));
+		Fk(:,it) = (PSk'*PSk+2*eye(Nsk)) \ (PSk'*U_X_PSFu(:,it) + (U_Fk_nuc(:,it)+U_Fk_nuc(:,it)) + (Fk_nuc(:,it)+Fk_nn(:,it)));
 		fprintf([repmat('\b',1,b)]); b=fprintf('%d',it);
 	end
 	fprintf('. Done. '), toc
@@ -117,29 +130,29 @@ for iter = 1:nIter,
 	fprintf('Estimating S... \n'), tic
 	Cu = U_Su_nn + Su_nn;
 	Tidx = 1:T;%randsample(T,10);
-	for it = 1:length(Tidx),
+	for it = tidx;%1:length(Tidx),
 		Cu = Cu + Pu(it)'*U_X_PSFk(:,it)*Fu(:,it)';
 	end
-	Su = solve_S_Pfun(@Pu,Fu(:,Tidx),Cu,Su);
+	Su = solve_S_Pfun(@Pu,Fu,Cu,Su,tidx);
 
 	Ck = U_Sk_nn + Sk_nn;
-	for it = 1:length(Tidx),
+	for it = tidx;%1:length(Tidx),
 		Ck = Ck + Pk(it)'*U_X_PSFu(:,it)*Fk(:,it)';
 	end
-	Sk = solve_S_Pfun(@Pk,Fk(:,Tidx),Ck,Sk);
+	Sk = solve_S_Pfun(@Pk,Fk,Ck,Sk,tidx);
 	fprintf('Done. '), toc
 
 	%% Update U
-	U_X = U_X+X-Xhat;
+	U_X(:,tidx) = U_X(:,tidx)+X(:,tidx)-Xhat(:,tidx);
 
-	U_Fu_nuc = U_Fu_nuc+Fu_nuc-Fu;
-	U_Fk_nuc = U_Fk_nuc+Fk_nuc-Fk;
+	U_Fu_nuc(:,tidx) = U_Fu_nuc(:,tidx)+Fu_nuc(:,tidx)-Fu(:,tidx);
+	U_Fk_nuc(:,tidx) = U_Fk_nuc(:,tidx)+Fk_nuc(:,tidx)-Fk(:,tidx);
 
 	%U_Fu_TF = U_Fu_TF+Fu_TF-Fu;
 	%U_Fk_TF = U_Fk_TF+Fk_TF-Fk;
 
-	U_Fu_nn = U_Fu_nn+Fu_nn-Fu;
-	U_Fk_nn = U_Fk_nn+Fk_nn-Fk;
+	U_Fu_nn(:,tidx) = U_Fu_nn(:,tidx)+Fu_nn(:,tidx)-Fu(:,tidx);
+	U_Fk_nn(:,tidx) = U_Fk_nn(:,tidx)+Fk_nn(:,tidx)-Fk(:,tidx);
 
 	U_Su_nn = U_Su_nn+Su_nn-Su;
 	U_Sk_nn = U_Sk_nn+Sk_nn-Sk;
@@ -154,15 +167,18 @@ for iter = 1:nIter,
 		loss_gt(iter) = 0;
 	end
 	fprintf('[Iter: %d] Loss: %f, Loss aug: %f, Loss gt: %f\n\n',iter,loss(iter),loss_aug(iter),loss_gt(iter))
-	subplot(311)
+	subplot(221)
 	plot(loss(1:iter))
 	title('loss')
-	subplot(312)
+	subplot(222)
 	plot(loss_aug(1:iter))
 	title('augmented loss')
-	subplot(313)
-	plot(loss_gt(1:iter))
-	title('gt parameter diff')
+	subplot(223)
+	imagesc(Sk'*Sk0)
+	title('gt Sk correlation')
+	subplot(224)
+	imagesc(Fk*Fk0')
+	title('gt Fk correlation')
 	drawnow
 
 end
@@ -181,8 +197,8 @@ keyboard
 		l = 0;
 
 		% primary loss: the KL divergence between Y and Xhat
-		l_Poiss = Y(:).*(log(Y(:))-log(Xhat_nn(:)));
-		l_Poiss = sum(l_Poiss(isfinite(l_Poiss))) + sum(Xhat_nn(:)-Y(:));
+		l_Poiss = Y(:,tidx).*(log(Y(:,tidx))-log(Xhat_nn(:,tidx)));
+		l_Poiss = sum(l_Poiss(isfinite(l_Poiss))) + sum(sum(Xhat_nn(:,tidx)-Y(:,tidx)));
 
 		% if (l_Poiss < 0) || ~isfinite(l_Poiss),
 		% 	keyboard
@@ -198,15 +214,15 @@ keyboard
 		disp(['l_Fk_nuc: ' num2str(l_Fk_nuc)])
 		disp(['l_Fu_nuc: ' num2str(l_Fu_nuc)])
 
-		l = l/numel(Y);
+		l = l/numel(Y(:,tidx));
 	end
 	function l_aug = lossfun_aug;
 		l_aug = 0;
 
 		% primary loss: the KL divergence between Y and X
-		l_Poiss = Y(:).*(log(Y(:))-log(X(:)));
-		l_Poiss = sum(l_Poiss(isfinite(l_Poiss))) + sum(X(:)-Y(:));
-		l_X = (rho/2)*norm(Xhat(:)-X(:)+U_X(:));
+		l_Poiss = Y(:,tidx).*(log(Y(:,tidx))-log(X(:,tidx)));
+		l_Poiss = sum(l_Poiss(isfinite(l_Poiss))) + sum(sum(X(:,tidx)-Y(:,tidx)));
+		l_X = (rho/2)*norm(Xhat(:,tidx)-X(:,tidx)+U_X(:,tidx),'fro');
 
 		l_Fk = 0;
 		l_Fk = l_Fk + lambdaFk_nuc*sum(svd(Fk_nuc));
@@ -232,10 +248,10 @@ keyboard
 		disp(['l_Sk: ' num2str(l_Sk)])
 		disp(['l_Su: ' num2str(l_Su)])
 
-		l_aug = l_aug/numel(Y);
+		l_aug = l_aug/numel(Y(:,tidx));
 	end
 	function l_gt = lossfun_gt;
-		l_gt = norm(Fk(:)-Fk0(:)) + norm(Sk(:)-Sk0(:));
+		l_gt = norm(Fk(:,tidx)-Fk0(:,tidx),'fro') + norm(Sk(:)-Sk0(:));
 	end
 
 
