@@ -1,0 +1,3 @@
+[submodule "PSI/proximal"]
+	path = PSI/proximal
+	url = git@github.com:srinituraga/proximal.git

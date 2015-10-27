@@ -1,6 +1,7 @@
 function R = reconstruct_imaging(obs,opts)
 %Estimates the intensity pattern of the sample given the observations
 
+keyboard
 %the expected projection:
 EXP = obs.IM(:)'*opts.P; %Expected data. In final form, this will take into account the dF/F0 in previous frame, etc.
 
@@ -123,6 +124,8 @@ P_shift = opts.P' * IM_seg;
     %S = P_inv*D_bs;
     
     %estimate with nonnegative constraint
+    % SRINI replace with different solver which incorporates various forms
+    % of regularization
     R.S(:,frame) = lsqnonneg(P_shift, D_bs); %S is the estimate of the seed intensities
 end
 R.dX = dX_est; R.dY = dY_est;
