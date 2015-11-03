@@ -184,7 +184,15 @@ for iter = 1:nIter,
 	drawnow
 
 end
-keyboard
+
+%show us the seeds and activity
+R.Fk = Fk;
+R.Fu = Fu;
+R.Sk = Sk;
+R.Su = Su;
+R.mask = mask;
+
+
 
 
 	function Pmotioncorrect = Pu(it)

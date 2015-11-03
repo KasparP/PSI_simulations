@@ -34,6 +34,6 @@ opts.scope.brightness = 10; %average photons per pulse, per pixel, across the ma
 
 %Debugging options:
 opts.debug.magic_align = true; %just give the correct motion parameters to the reconstruction algorithm
-opts.debug.nonoise = false; % set all noise to 0
+opts.debug.nonoise = true; % set all noise to 0
 
 opts.simName = ''; %can be specified to save the simulation output into its own directory
