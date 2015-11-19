@@ -105,6 +105,13 @@ if opts.sim.unsuspected.N
             valid_pos(xy(1),xy(2)) = false;
         end
     end
+    
+    if strcmpi(opts.sim.dynamics, 'smooth')
+        GT.unsuspected.activity = opts.sim.amp .* convn(poissrnd(1/(50*opts.framerate), opts.sim.unsuspected.N, opts.nframes), kernel ,'same');
+    else %random
+        GT.unsuspected.activity = opts.sim.amp .* convn(poissrnd(1/(50*opts.framerate), opts.sim.unsuspected.N, max(500*length(kernel), opts.nframes)), kernel ,'same');
+        GT.unsuspected.activity =  GT.unsuspected.activity(:, randperm(size(GT.unsuspected.activity,2), opts.sim.unsuspected.N));
+    end
 end
 
 end

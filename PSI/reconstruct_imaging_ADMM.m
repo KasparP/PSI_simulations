@@ -3,7 +3,7 @@ function R = reconstruct_imaging(obs,opts,nIter,Nframes,groundtruth)
 
 % Nframes = 10;
 
-rho = 1e-0
+rho = 1e-0;
 lambdaFk_nuc = 1e-10;
 lambdaFu_nuc = 1e0;
 lambdaFk_TF = 1e-10;
