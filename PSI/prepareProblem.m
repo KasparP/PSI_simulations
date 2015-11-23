@@ -2,7 +2,7 @@ function prepareProblem
 
 opts = default_opts;
 
-basedir = which('prepareProblem');
+basedir = fileparts(which('prepareProblem'))
 problemname = 'Problem_nonoise_v1';
 
 %Begin Simulation
@@ -25,11 +25,13 @@ toc
 
 
 
-opts.seg.dist_thresh = 0.65;  %in microns, the distance between seeds
+%change some of the segmentation parameters
+opts.seg.dist_thresh = 0.75;  %in microns, the distance between seeds
+opts.seg.nh_size = 28;
 disp('Segmenting image for reconstruction')
 S_init = segment_2D(obs.IM, opts);
 
 
 
-save([problemname '.mat'], 'ground_truth', 'opts', 'obs', 'S_init');
+save([basedir filesep problemname '.mat'], 'ground_truth', 'opts', 'obs', 'S_init');
 keyboard

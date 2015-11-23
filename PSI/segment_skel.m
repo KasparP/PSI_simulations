@@ -5,7 +5,7 @@ function S = segment_skel (bw, image, opts, maxseeds)
 I2 = imtophat(medfilt2(image),strel('disk',4/opts.image.XYscale)); %radius of 4 microns
 
 dist_thresh = opts.seg.dist_thresh/opts.image.XYscale;  %minimum distance between seeds, in pixels
-nh_size = 30; %maximum radius of seed influence, in pixels. This should be >2*dist_thresh
+nh_size = opts.seg.nh_size; %maximum radius of seed influence, in pixels. This should be >2*dist_thresh
 
 %gaussian filter with sigma ~= dendrite radius, will help find middles of
 %dendrites
