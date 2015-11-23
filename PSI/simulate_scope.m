@@ -38,9 +38,6 @@ if nargin %update any options passed as argument
     end
 end
 
-%some aliases that make things simpler
-opts.nframes = opts.sim.dur*opts.framerate;
-
 %warnings if the simulation is using a debug mode
 if opts.debug.magic_align 
 	disp('WARNING: Using DEBUG: MAGIC ALIGN mode')

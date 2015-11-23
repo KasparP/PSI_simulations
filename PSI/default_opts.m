@@ -14,6 +14,8 @@ opts.sim.dynamics = 'random';   %'smooth' for motion and activity varying slowly
 opts.sim.unsuspected.N = 3; % an integer >=0, adds this number of 'unsuspected' signals to the image in regions outside the morphological mask, to simulate failures in segmentation due to weak morphological signal
 opts.sim.unsuspected.amp = 3;
 
+opts.nframes = opts.sim.dur*opts.framerate;
+
 opts.image.XYscale = 0.2; %voxel size of loaded image/standard 2P acquisition, microns
 opts.image.Zscale = 1.5; %voxel size of loaded image/standard 2P acquisition, microns
 
@@ -23,6 +25,7 @@ opts.motion.speed = 20; %timescale of motion; higher numbers are slower. Only ap
 opts.motion.limit = 10; %we are capping the simulated motion at this value, in pixels
 
 opts.seg.nh_size = 30; %the region around each seed to look for related pixels
+opts.seg.dist_thresh = 0.8; %used to select the number of seeds K to initialize
 
 opts.do3D = false; %are we simulating 2D or 3D imaging?
 opts.Ptype = '4lines'; %what projection scheme are we simulating? 2lines, 4lines, etc.
@@ -35,5 +38,8 @@ opts.scope.brightness = 10; %average photons per pulse, per pixel, across the ma
 %Debugging options:
 opts.debug.magic_align = true; %just give the correct motion parameters to the reconstruction algorithm
 opts.debug.nonoise = true; % set all noise to 0
+
+
+
 
 opts.simName = ''; %can be specified to save the simulation output into its own directory

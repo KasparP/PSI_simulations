@@ -4,7 +4,7 @@ function S = segment_skel (bw, image, opts, maxseeds)
 %background subtract
 I2 = imtophat(medfilt2(image),strel('disk',4/opts.image.XYscale)); %radius of 4 microns
 
-dist_thresh = 0.8/opts.image.XYscale;  %minimum distance between seeds, in pixels
+dist_thresh = opts.seg.dist_thresh/opts.image.XYscale;  %minimum distance between seeds, in pixels
 nh_size = 30; %maximum radius of seed influence, in pixels. This should be >2*dist_thresh
 
 %gaussian filter with sigma ~= dendrite radius, will help find middles of
@@ -50,7 +50,7 @@ i2 = i2(~exclude);
 %D = D(~exclude, ~exclude);
 
 %show the seed points
-if false
+if true
     im_disp = zeros(size(bw));
     im_disp(sub2ind(size(bw), i1,i2)) = 1;
     im_disp = conv2(im_disp, ones(3), 'same');

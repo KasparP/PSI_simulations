@@ -1,4 +1,4 @@
-function R = reconstruct_imaging(obs,opts,nIter,Nframes,groundtruth)
+function R = reconstruct_imaging_ADMM(obs,opts,nIter,Nframes,groundtruth)
 %Estimates the intensity pattern of the sample given the observations
 
 % Nframes = 10;

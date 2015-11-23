@@ -13,7 +13,7 @@ function S = segment_2D (I, opts)
     bw = imdilate(bw, strel('diamond',1));
     %remove regions of size less than 40 pixels
     bw = bwareaopen(bw, 40);
-    if false
+    if true
         figure, imshow(bw)
     end
     
