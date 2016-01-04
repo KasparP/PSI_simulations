@@ -19,7 +19,7 @@ D = io.loadmat(fn, struct_as_record=False, squeeze_me=True)
 # reconstruct_imaging_ADMM(D['obs'],D['opts'],1000,40,D['ground_truth'])
 obs = D['obs']
 opts = D['opts']
-nIter = 3
+nIter = 1000
 Nframes = 2
 groundtruth = D['ground_truth']
 
@@ -206,7 +206,7 @@ for ITER in range(nIter):
     if Nframes < T:
         tidx = random.sample(range(0, T), Nframes)
         tidx2 = tidx
-        if ITER == 1 or (ITER % 50) == 0:
+        if (ITER % 50) == 0:
             tidx2 = range(0, T)
 
 
@@ -251,10 +251,10 @@ for ITER in range(nIter):
     etaFk[:,tidx2] = 1/(1+np.sqrt(etaFk2[:,tidx2]))
 
     # update
-    Su = Su + eta*etaSu*dSu
-    Sk = Sk + eta*etaSk*dSk
-    Fu[:,tidx2] = Fu[:,tidx2] + eta*etaFu[:,tidx2]*dFu[:,tidx2]
-    Fk[:,tidx2] = Fk[:,tidx2] + eta*etaFk[:,tidx2]*dFk[:,tidx2]
+    Su = Su - eta*etaSu*dSu
+    Sk = Sk - eta*etaSk*dSk
+    Fu[:,tidx2] = Fu[:,tidx2] - eta*etaFu[:,tidx2]*dFu[:,tidx2]
+    Fk[:,tidx2] = Fk[:,tidx2] - eta*etaFk[:,tidx2]*dFk[:,tidx2]
 
     # rectify, and normalize to 1
     Fu[:,tidx2] = np.maximum(0, Fu[:,tidx2])
