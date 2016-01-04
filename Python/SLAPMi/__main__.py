@@ -251,10 +251,10 @@ for ITER in range(nIter):
     etaFk[:,tidx2] = 1/(1+np.sqrt(etaFk2[:,tidx2]))
 
     # update
-    Su = Su - eta*etaSu*dSu
-    Sk = Sk - eta*etaSk*dSk
-    Fu[:,tidx2] = Fu[:,tidx2] - eta*etaFu[:,tidx2]*dFu[:,tidx2]
-    Fk[:,tidx2] = Fk[:,tidx2] - eta*etaFk[:,tidx2]*dFk[:,tidx2]
+    Su = Su + eta*etaSu*dSu
+    Sk = Sk + eta*etaSk*dSk
+    Fu[:,tidx2] = Fu[:,tidx2] + eta*etaFu[:,tidx2]*dFu[:,tidx2]
+    Fk[:,tidx2] = Fk[:,tidx2] + eta*etaFk[:,tidx2]*dFk[:,tidx2]
 
     # rectify, and normalize to 1
     Fu[:,tidx2] = np.maximum(0, Fu[:,tidx2])
