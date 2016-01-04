@@ -1,3 +1,4 @@
+from numba import jit
 import numpy as np
 import scipy as sp
 from scipy import io
@@ -5,8 +6,12 @@ from numpy import ndarray
 import time
 import random
 import matplotlib.pyplot as plt
+import progressbar
 
-fn = 'C:\Users\podgorskik\Documents\GitHub\PSI_simulations\PSI\PRECOMP_nonoise_py'
+# @jit
+
+# fn = '../PSI/Problem_nonoise_v1.mat'
+fn = '../../PSI/PRECOMP_nonoise_py.mat'
 
 # def initialize(fn):
 D = io.loadmat(fn, struct_as_record=False, squeeze_me=True)
@@ -92,13 +97,6 @@ def Pk(it):
     return P0[:, mask]
 
 # IS THIS THE CORRECT SIZE TO INITIALIZE THESE?
-PSFu = sp.zeros(Y.shape)
-PSFk = sp.zeros(Y.shape)
-U_X_PSFk = sp.zeros(PSFk.shape)
-U_X_PSFu = sp.zeros(PSFu.shape)
-loss = sp.zeros((1, nIter))
-loss_aug = sp.zeros((1, nIter))
-loss_gt = sp.zeros((1, nIter))
 
 if Nframes < T:
     tidx = random.sample(range(0, T), Nframes)
@@ -185,110 +183,104 @@ def lossfun_gt():  # WE NEED A PROPER GT LOSS FUNCTION! Previous one was sensiti
     l_gt = 10
     return l_gt
 
-for ITER in range(1, nIter + 1):
+eta = 0.1
+loss = np.zeros((nIter))
+dSu = np.empty(Su.shape)
+dSk = np.empty(Sk.shape)
+dFu = np.empty(Fu.shape)
+dFk = np.empty(Fk.shape)
+etaSu = np.empty(Su.shape)
+etaSk = np.empty(Sk.shape)
+etaFu = np.empty(Fu.shape)
+etaFk = np.empty(Fk.shape)
+etaSu2 = np.empty(Su.shape)
+etaSk2 = np.empty(Sk.shape)
+etaFu2 = np.empty(Fu.shape)
+etaFk2 = np.empty(Fk.shape)
+Xhat = np.zeros(Y.shape)
+PSFu = np.zeros(Y.shape)
+PSFk = np.zeros(Y.shape)
+E = np.zeros(Y.shape)
+for ITER in range(nIter):
     # subsample in time
     if Nframes < T:
         tidx = random.sample(range(0, T), Nframes)
         tidx2 = tidx
         if ITER == 1 or (ITER % 50) == 0:
             tidx2 = range(0, T)
+
+
     print ('Pre-computing P*[Sk*Fk+Su*Fu]... ')
     tic = time.time()
     # b=0;
-
-
-
-    for it in tidx2:
-        print it, '\r'
+    bar = progressbar.ProgressBar()
+    for it in bar(tidx2):
+        # print it, '\r'
         PSFu[:, it] = Pu(it).dot(Su.dot(Fu[:, it]))
         PSFk[:, it] = Pk(it).dot(Sk.dot(Fk[:, it]))
-        Xhat_nn[:, it] = Pu(it).dot(np.maximum(Su, 0)).dot(np.maximum(Fu[:, it], 0)) + Pk(it).dot((np.maximum(Sk, 0)).dot(np.maximum(Fk[:, it], 0)))
     # fprintf([repmat('\b',1,b)]); b=fprintf('%d',it);
 
-    Xhat[:, tidx2] = PSFu[:, tidx2] + PSFk[:, tidx2]  # no divide by 2?
+    Xhat[:, tidx2] = PSFu[:, tidx2] + PSFk[:, tidx2]
+    E[:, tidx2] = Y[:, tidx2] - Xhat[:, tidx2]
     print 'Done precompute. ', time.time() - tic, 'seconds'
-#   X[:, tidx2] = prox_DKL(Y[:, tidx2], Xhat[:, tidx2] - U_X[:, tidx2], rho)
-    U_X_PSFk[:, tidx2] = U_X[:, tidx2] + X[:, tidx2] - PSFk[:, tidx2]
-    U_X_PSFu[:, tidx2] = U_X[:, tidx2] + X[:, tidx2] - PSFu[:, tidx2]
 
-    #    Fu_nuc = prox_matrix(Fu-U_Fu_nuc,lambdaFu_nuc/rho,prox_l1)
-    #    Fk_nuc = prox_matrix(Fk-U_Fk_nuc,lambdaFk_nuc/rho,prox_l1)
+    # compute gradients
+    print ('Computing gradients... ')
+    tic = time.time()
+    dSu.fill(0.0)
+    dSk.fill(0.0)
+    bar = progressbar.ProgressBar()
+    for it in bar(tidx2):
+        dFu[:, it] = ((Pu(it).dot(Su)).T).dot(E[:, it])
+        dSu = dSu + np.outer((Pu(it).T).dot(E[:, it]),Fu[:,it])
+        dFk[:, it] = ((Pk(it).dot(Sk)).T).dot(E[:, it])
+        dSk = dSk + np.outer((Pk(it).T).dot(E[:, it]),Fk[:,it])
+    dSu = dSu/len(tidx2)
+    dSk = dSk/len(tidx2)
+    print 'Done. ', time.time() - tic, 'seconds'
 
+    # update learning rate
+    etaSu2 = etaSu2 + np.square(dSu)
+    etaSk2 = etaSk2 + np.square(dSk)
+    etaFu2[:,tidx2] = etaFu2[:,tidx2] + np.square(dFu[:,tidx2])
+    etaFk2[:,tidx2] = etaFk2[:,tidx2] + np.square(dFk[:,tidx2])
 
-    # [Fu_TF, Fu_TF_z, Fu_TF_u] = prox_matrix_L1(D,Fu-U_Fu_TF,lambdaFu_TF,rho,1,10,Fu_TF,Fu_TF_z,Fu_TF_u);
-    # [Fk_TF, Fk_TF_z, Fk_TF_u] = prox_matrix_L1(D,Fk-U_Fk_TF,lambdaFk_TF,rho,1,10,Fk_TF,Fk_TF_z,Fk_TF_u);
+    etaSu = 1/(1+np.sqrt(etaSu2))
+    etaSk = 1/(1+np.sqrt(etaSk2))
+    etaFu[:,tidx2] = 1/(1+np.sqrt(etaFu2[:,tidx2]))
+    etaFk[:,tidx2] = 1/(1+np.sqrt(etaFk2[:,tidx2]))
 
-    Fu_nn[:, tidx2] = np.maximum(0, Fu[:, tidx2] - U_Fu_nn[:, tidx2])
-    Fk_nn[:, tidx2] = np.maximum(0, Fk[:, tidx2] - U_Fk_nn[:, tidx2])
+    # update
+    Su = Su + eta*etaSu*dSu
+    Sk = Sk + eta*etaSk*dSk
+    Fu[:,tidx2] = Fu[:,tidx2] + eta*etaFu[:,tidx2]*dFu[:,tidx2]
+    Fk[:,tidx2] = Fk[:,tidx2] + eta*etaFk[:,tidx2]*dFk[:,tidx2]
 
     # rectify, and normalize to 1
-    Su_nn = np.maximum(0, Su - U_Su_nn)
-    Su_nn = Su_nn * 1 / np.sum(Su_nn, 0)  # bsxfun(@times,Su_nn,1./sum(Su_nn,1))
-    Sk_nn = np.maximum(0, Sk - U_Sk_nn)
-    Sk_nn = Sk_nn * 1 / np.sum(Sk_nn, 0)  # bsxfun(@times,Sk_nn,1./sum(Sk_nn,1))
+    Fu[:,tidx2] = np.maximum(0, Fu[:,tidx2])
+    Fk[:,tidx2] = np.maximum(0, Fk[:,tidx2])
+    Su = np.maximum(0, Su)
+    Sk = np.maximum(0, Sk)
+    Su = Su * 1 / np.sum(Su, 0)
+    Sk = Sk * 1 / np.sum(Sk, 0)
 
-    # Update consensus variables
-    print 'Estimating F, t=', tic
-    b = 0
-    for it in tidx2:
-        PSu = Pu(it).dot(Su)
-        PSk = Pk(it).dot(Sk)
-        Fu[:, it] = sp.linalg.solve(PSu.T.dot(PSu) + 2 * sp.eye(Nsu), (
-        PSu.T.dot(U_X_PSFk[:, it]) + (U_Fu_nuc[:, it] + U_Fu_nuc[:, it]) + (Fu_nuc[:, it] + Fu_nn[:, it])))
-        Fk[:, it] = sp.linalg.solve(PSk.T.dot(PSk) + 2 * sp.eye(Nsk), (
-        PSk.T.dot(U_X_PSFu[:, it]) + (U_Fk_nuc[:, it] + U_Fk_nuc[:, it]) + (Fk_nuc[:, it] + Fk_nn[:, it])))
-        print '\b' * 8
-        print "'%08d'\r" % it
 
-    print '. Done. '
-    print 'Estimating S... \n'
-
-    Cu = U_Su_nn + Su_nn
-    tidx = range(0, T)  # randsample(T,10);
-    for it in tidx:  # 1:length(Tidx),
-        Cu = Cu + Pu(it).T.dot(np.expand_dims(U_X_PSFk[:, it],1).dot(np.expand_dims(Fu[:, it],1).T))
-#    Su = solve_S_Pfun(Pu, Fu, Cu, Su, tidx)
-
-    Ck = U_Sk_nn + Sk_nn
-    for it in tidx:  # 1:length(tidx),
-        Ck = Ck + Pk(it).T.dot(np.expand_dims(U_X_PSFu[:, it],1).dot(np.expand_dims(Fk[:, it],1).T))
-#    Sk = solve_S_Pfun(Pk, Fk, Ck, Sk, tidx)
-
-    print 'Done. '
-
-    ## Update U
-    U_X[:, tidx] = U_X[:, tidx] + X[:, tidx] - Xhat[:, tidx]
-
-    U_Fu_nuc[:, tidx] = U_Fu_nuc[:, tidx] + Fu_nuc[:, tidx] - Fu[:, tidx]
-    U_Fk_nuc[:, tidx] = U_Fk_nuc[:, tidx] + Fk_nuc[:, tidx] - Fk[:, tidx]
-
-    # U_Fu_TF = U_Fu_TF+Fu_TF-Fu
-    # U_Fk_TF = U_Fk_TF+Fk_TF-Fk
-
-    U_Fu_nn[:, tidx] = U_Fu_nn[:, tidx] + Fu_nn[:, tidx] - Fu[:, tidx]
-    U_Fk_nn[:, tidx] = U_Fk_nn[:, tidx] + Fk_nn[:, tidx] - Fk[:, tidx]
-
-    U_Su_nn = U_Su_nn + Su_nn - Su
-    U_Sk_nn = U_Sk_nn + Sk_nn - Sk
 
     ## Compute loss
-    loss[0,ITER] = lossfun()
-    loss_aug[0,ITER] = lossfun_aug()
-    if 'groundtruth' in locals() and groundtruth is not None:
-        loss_gt[0,ITER] = lossfun_gt()
-    else:
-        loss_gt[0,ITER] = 0
+    # loss[ITER] = lossfun()
+    loss[ITER] = np.linalg.norm(E.ravel())
 
-    # print '[Iter: %d] Loss: %f, Loss aug: %f, Loss gt: %f\n\n',iter,loss(iter),loss_aug(iter),loss_gt(iter))
 
-    tvec = range(2, ITER + 1)
-    tvec2 = np.arange(51, ITER, 50).tolist()
-    plt.subplot(211)
-    plt.plot(tvec, loss[tvec], tvec2, loss[tvec2])
-    plt.title('loss')
-    plt.subplot(212)
-    plt.plot(tvec, loss_aug[tvec], tvec2, loss_aug[tvec2])
-    plt.title('augmented loss')
+    print '[Iter: %d] Loss: %f,\n' % (ITER,loss[ITER])
+
+    # tvec = range(2, ITER + 1)
+    # tvec2 = np.arange(51, ITER, 50).tolist()
+    # plt.subplot(211)
+    # plt.plot(tvec, loss[tvec], tvec2, loss[tvec2])
+    # plt.title('loss')
+    # plt.subplot(212)
+    # plt.plot(tvec, loss_aug[tvec], tvec2, loss_aug[tvec2])
+    # plt.title('augmented loss')
     # plt.subplot(223)
     # imagesc(Sk'*Sk0)
     # title('gt Sk correlation')
@@ -296,7 +288,7 @@ for ITER in range(1, nIter + 1):
     # imagesc(Fk*Fk0')
     # title('gt Fk correlation')
 
-    plt.pause(0.0001)  # ensure this gets drawn
+    # plt.pause(0.0001)  # ensure this gets drawn
 
 if __name__ == '__main__':
     initialize(binLocation)
