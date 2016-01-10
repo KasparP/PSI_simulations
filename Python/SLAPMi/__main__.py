@@ -101,7 +101,7 @@ def lossfun_gt():  # WE NEED A PROPER GT LOSS FUNCTION! Previous one was sensiti
     return l_gt
 
 
-def reconstruct_cpu(Y,Sk,Fk,Su,Fu,Nframes,nIter):
+def reconstruct_cpu(Y,Sk,Fk,Su,Fu,Nframes,nIter,adagrad):
     print 'Y (min,max): (%f,%f)' % (Y.min(),Y.max())
 
     if Nframes < T:
@@ -173,19 +173,25 @@ def reconstruct_cpu(Y,Sk,Fk,Su,Fu,Nframes,nIter):
         print 'Done. ', time.time() - tic, 'seconds'
 
         # update learning rate (Adagrad)
-        etaSu2 = etaSu2 + np.square(dSu)
-        etaSk2 = etaSk2 + np.square(dSk)
-        etaFu2 = etaFu2 + np.square(np.mean(np.fabs(dFu)))
-        etaFk2 = etaFk2 + np.square(np.mean(np.fabs(dFk)))
-        # etaFu2[:,tidx2] = etaFu2[:,tidx2] + np.square(dFu[:,tidx2])
-        # etaFk2[:,tidx2] = etaFk2[:,tidx2] + np.square(dFk[:,tidx2])
+        if adagrad == True:
+            etaSu2 = etaSu2 + np.square(dSu)
+            etaSk2 = etaSk2 + np.square(dSk)
+            etaFu2 = etaFu2 + np.square(np.mean(np.fabs(dFu)))
+            etaFk2 = etaFk2 + np.square(np.mean(np.fabs(dFk)))
+            # etaFu2[:,tidx2] = etaFu2[:,tidx2] + np.square(dFu[:,tidx2])
+            # etaFk2[:,tidx2] = etaFk2[:,tidx2] + np.square(dFk[:,tidx2])
 
-        etaSu = 1./(np.finfo(np.float).eps+np.sqrt(etaSu2))
-        etaSk = 1./(np.finfo(np.float).eps+np.sqrt(etaSk2))
-        etaFu = 1./(np.finfo(np.float).eps+np.sqrt(etaFu2))
-        etaFk = 1./(np.finfo(np.float).eps+np.sqrt(etaFk2))
-        # etaFu[:,tidx2] = 1./(np.finfo(np.float).eps+np.sqrt(etaFu2[:,tidx2]))
-        # etaFk[:,tidx2] = 1./(np.finfo(np.float).eps+np.sqrt(etaFk2[:,tidx2]))
+            etaSu = 1./(np.finfo(np.float).eps+np.sqrt(etaSu2))
+            etaSk = 1./(np.finfo(np.float).eps+np.sqrt(etaSk2))
+            etaFu = 1./(np.finfo(np.float).eps+np.sqrt(etaFu2))
+            etaFk = 1./(np.finfo(np.float).eps+np.sqrt(etaFk2))
+            # etaFu[:,tidx2] = 1./(np.finfo(np.float).eps+np.sqrt(etaFu2[:,tidx2]))
+            # etaFk[:,tidx2] = 1./(np.finfo(np.float).eps+np.sqrt(etaFk2[:,tidx2]))
+        else:
+            etaSu = 1
+            etaSk = 1
+            etaFu = 1
+            etaFk = 1
 
         # compute updates
         deltaSu = eta*etaSu*dSu
@@ -293,7 +299,7 @@ if __name__ == '__main__':
 
     print 'Done initialization!', time.time() - tic, 'seconds'
 
-    Sk,Fk,Su,Fu = reconstruct_cpu(Y,Sk,Fk,Su,Fu,Nframes,nIter)
+    Sk,Fk,Su,Fu = reconstruct_cpu(Y,Sk,Fk,Su,Fu,Nframes,nIter,adagrad=False)
     # Sk,Fk,Su,Fu = reconstruct_theano(Y,Sk,Fk,Su,Fu,Nframes,nIter)
 
     # Fu_nuc = Fu  # zeros(size(Fu));
