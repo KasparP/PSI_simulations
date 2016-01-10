@@ -297,7 +297,7 @@ if __name__ == '__main__':
 
     print 'Done initialization!', time.time() - tic, 'seconds'
 
-    Sk,Fk,Su,Fu = reconstruct_cpu(Y,Sk,Fk,Su,Fu,Nframes,nIter,eta=1e-1,adagrad=False)
+    Sk,Fk,Su,Fu = reconstruct_cpu(Y,Sk,Fk,Su,Fu,Nframes,nIter,eta=1e-2,adagrad=False)
     # Sk,Fk,Su,Fu = reconstruct_theano(Y,Sk,Fk,Su,Fu,Nframes,nIter)
 
     # Fu_nuc = Fu  # zeros(size(Fu));
