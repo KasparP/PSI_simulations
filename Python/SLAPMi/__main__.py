@@ -252,8 +252,6 @@ if __name__ == '__main__':
     # reconstruct_imaging_ADMM(D['obs'],D['opts'],1000,40,D['ground_truth'])
     obs = D['obs']
     opts = D['opts']
-    nIter = 1000
-    Nframes = 2
     groundtruth = D['ground_truth']
 
     # NOTES:
@@ -297,7 +295,7 @@ if __name__ == '__main__':
 
     print 'Done initialization!', time.time() - tic, 'seconds'
 
-    Sk,Fk,Su,Fu = reconstruct_cpu(Y,Sk,Fk,Su,Fu,Nframes,nIter,eta=1e-2,adagrad=False)
+    Sk,Fk,Su,Fu = reconstruct_cpu(Y,Sk,Fk,Su,Fu,Nframes=2,nIter=int(1e5),eta=1e-2,adagrad=False)
     # Sk,Fk,Su,Fu = reconstruct_theano(Y,Sk,Fk,Su,Fu,Nframes,nIter)
 
     # Fu_nuc = Fu  # zeros(size(Fu));
