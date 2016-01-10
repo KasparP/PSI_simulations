@@ -220,8 +220,8 @@ def reconstruct_cpu(Y,Sk,Fk,Su,Fu,Nframes,nIter,eta,adagrad):
         Fk[:,tidx2] = np.maximum(0, Fk[:,tidx2])
         Su = np.maximum(0, Su)
         Sk = np.maximum(0, Sk)
-        Su = Su * 1 / np.sum(Su, 0)
-        Sk = Sk * 1 / np.sum(Sk, 0)
+        Su = Su * 1 / np.sum(np.finfo(np.float).eps+Su, 0)
+        Sk = Sk * 1 / np.sum(np.finfo(np.float).eps+Sk, 0)
 
         print "\n"
 
@@ -297,7 +297,7 @@ if __name__ == '__main__':
 
     print 'Done initialization!', time.time() - tic, 'seconds'
 
-    Sk,Fk,Su,Fu = reconstruct_cpu(Y,Sk,Fk,Su,Fu,Nframes,nIter,eta=1e-2,adagrad=False)
+    Sk,Fk,Su,Fu = reconstruct_cpu(Y,Sk,Fk,Su,Fu,Nframes,nIter,eta=1e-1,adagrad=False)
     # Sk,Fk,Su,Fu = reconstruct_theano(Y,Sk,Fk,Su,Fu,Nframes,nIter)
 
     # Fu_nuc = Fu  # zeros(size(Fu));
