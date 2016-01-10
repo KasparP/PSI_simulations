@@ -101,21 +101,18 @@ def lossfun_gt():  # WE NEED A PROPER GT LOSS FUNCTION! Previous one was sensiti
     return l_gt
 
 
-def reconstruct_cpu(Y,Sk,Fk,Su,Fu,Nframes,nIter,adagrad):
+def reconstruct_cpu(Y,Sk,Fk,Su,Fu,Nframes,nIter,eta,adagrad):
     print 'Y (min,max): (%f,%f)' % (Y.min(),Y.max())
 
-    if Nframes < T:
-        tidx = random.sample(range(0, T), Nframes)
-    else:
-        tidx = range(0, T)  # 1:T
-    tidx2 = range(0, T)
-
-    eta = 1e-0
     loss = np.zeros((nIter))
     dSu = np.empty(Su.shape)
     dSk = np.empty(Sk.shape)
     dFu = np.empty(Fu.shape)
     dFk = np.empty(Fk.shape)
+    deltaSu = np.empty(Su.shape)
+    deltaSk = np.empty(Sk.shape)
+    deltaFu = np.empty(Fu.shape)
+    deltaFk = np.empty(Fk.shape)
     etaSu = np.empty(Su.shape)
     etaSk = np.empty(Sk.shape)
     etaFu = np.empty(Fu.shape)
@@ -128,34 +125,40 @@ def reconstruct_cpu(Y,Sk,Fk,Su,Fu,Nframes,nIter,adagrad):
     PSFu = np.zeros(Y.shape)
     PSFk = np.zeros(Y.shape)
     E = np.zeros(Y.shape)
+
     for ITER in range(nIter):
+
         # subsample in time
-        # if Nframes < T:
-        #     tidx = random.sample(range(0, T), Nframes)
-        #     tidx2 = tidx
-        #     if (ITER % 50) == 0:
-        #         tidx2 = range(0, T)
-        tidx2 = range(0, T)
+        if Nframes < T:
+            tidx2 = random.sample(range(0, T), Nframes)
+        else:
+            tidx2 = range(T)
+        if (ITER % 50) == 0:
+            tidx = range(T)
+        else:
+            tidx = tidx2
 
 
         print ('Pre-computing P*[Sk*Fk+Su*Fu]... ')
         tic = time.time()
         # b=0;
         bar = progressbar.ProgressBar()
-        for it in bar(tidx2):
+        for it in bar(tidx):
             PSFu[:, it] = Pu(it).dot(Su.dot(Fu[:, it]))
             PSFk[:, it] = Pk(it).dot(Sk.dot(Fk[:, it]))
 
-        Xhat[:, tidx2] = PSFu[:, tidx2] + PSFk[:, tidx2]
-        E[:, tidx2] = Y[:, tidx2] - Xhat[:, tidx2]
+        Xhat[:, tidx] = PSFu[:, tidx] + PSFk[:, tidx]
+        E[:, tidx] = Y[:, tidx] - Xhat[:, tidx]
         print 'Done precompute. ', time.time() - tic, 'seconds'
 
         ## Compute loss
         # loss[ITER] = lossfun()
-        loss[ITER] = np.linalg.norm(E[:,tidx2].ravel())/np.sqrt(len(tidx2))
+        loss[ITER] = 0.5*np.mean(np.square(E[:,tidx]).ravel())
 
 
         print '[Iter: %d] Loss: %f' % (ITER,loss[ITER])
+        if (ITER % 50) == 0:
+            np.save('loss.npy',loss)
 
         # compute gradients
         print ('Computing gradients... ')
@@ -196,8 +199,8 @@ def reconstruct_cpu(Y,Sk,Fk,Su,Fu,Nframes,nIter,adagrad):
         # compute updates
         deltaSu = eta*etaSu*dSu
         deltaSk = eta*etaSk*dSk
-        deltaFu = eta*etaFu*dFu[:,tidx2]
-        deltaFk = eta*etaFk*dFk[:,tidx2]
+        deltaFu[:,tidx2] = eta*etaFu*dFu[:,tidx2]
+        deltaFk[:,tidx2] = eta*etaFk*dFk[:,tidx2]
         # deltaFu = eta*etaFu[:,tidx2]*dFu[:,tidx2]
         # deltaFk = eta*etaFk[:,tidx2]*dFk[:,tidx2]
 
@@ -207,11 +210,10 @@ def reconstruct_cpu(Y,Sk,Fk,Su,Fu,Nframes,nIter,adagrad):
         print 'mean step size Fk[:,it] = %f' % np.mean(np.fabs(deltaFk[:,it].ravel()))
 
         # update
-        if ITER > 0:    # skip the first update to warm start Adagrad
-            Su = Su + deltaSu
-            Sk = Sk + deltaSk
-            Fu[:,tidx2] = Fu[:,tidx2] + deltaFu
-            Fk[:,tidx2] = Fk[:,tidx2] + deltaFk
+        Su = Su + deltaSu
+        Sk = Sk + deltaSk
+        Fu[:,tidx2] = Fu[:,tidx2] + deltaFu[:,tidx2]
+        Fk[:,tidx2] = Fk[:,tidx2] + deltaFk[:,tidx2]
 
         # rectify, and normalize to 1
         Fu[:,tidx2] = np.maximum(0, Fu[:,tidx2])
@@ -270,10 +272,10 @@ if __name__ == '__main__':
 
     print(opts.P.shape)
     obs.data_in = opts.P[mask, :].T.dot(groundtruth.seg[mask, :]).dot(groundtruth.activity)
-    obs.data_in = obs.data_in[:,:50]
+    # obs.data_in = obs.data_in[:,:50]
 
-    [Nvox, Np] = opts.P.shape
-    [Np, T] = obs.data_in.shape
+    [Nvox, Nproj] = opts.P.shape
+    [Nproj, T] = obs.data_in.shape
     Nsk = groundtruth.activity.shape[0]
     Nsu = groundtruth.unsuspectedPos.shape[1]
 
@@ -286,10 +288,6 @@ if __name__ == '__main__':
     Y = obs.data_in
     P0 = opts.P.T  # transpose
 
-    X = sp.zeros((Np, T))
-    Xhat = sp.zeros((Np, T))
-    Xhat_nn = sp.zeros((Np, T))
-
     # TODO: improve initialization!
     Sk = 1e-3 * sp.rand(Nvoxk, Nsk)  # +Sk0
     Fk = 5e-1 * sp.rand(Nsk, T)  # +Fk0
@@ -299,7 +297,7 @@ if __name__ == '__main__':
 
     print 'Done initialization!', time.time() - tic, 'seconds'
 
-    Sk,Fk,Su,Fu = reconstruct_cpu(Y,Sk,Fk,Su,Fu,Nframes,nIter,adagrad=False)
+    Sk,Fk,Su,Fu = reconstruct_cpu(Y,Sk,Fk,Su,Fu,Nframes,nIter,eta=1e-2,adagrad=False)
     # Sk,Fk,Su,Fu = reconstruct_theano(Y,Sk,Fk,Su,Fu,Nframes,nIter)
 
     # Fu_nuc = Fu  # zeros(size(Fu));
