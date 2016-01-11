@@ -209,6 +209,12 @@ def reconstruct_cpu(Y,Sk,Fk,Su,Fu,Nframes,nIter,eta,adagrad):
         print 'mean step size Fu[:,it] = %f' % np.mean(np.fabs(deltaFu[:,it].ravel()))
         print 'mean step size Fk[:,it] = %f' % np.mean(np.fabs(deltaFk[:,it].ravel()))
 
+        # clip gradients if they are too big
+        np.clip(deltaSu,-1e3,1e3,out=deltaSu)
+        np.clip(deltaSk,-1e3,1e3,out=deltaSk)
+        np.clip(deltaFu,-1e3,1e3,out=deltaFu)
+        np.clip(deltaFk,-1e3,1e3,out=deltaFk)
+
         # update
         Su = Su + deltaSu
         Sk = Sk + deltaSk
@@ -295,7 +301,7 @@ if __name__ == '__main__':
 
     print 'Done initialization!', time.time() - tic, 'seconds'
 
-    Sk,Fk,Su,Fu = reconstruct_cpu(Y,Sk,Fk,Su,Fu,Nframes=2,nIter=int(1e5),eta=1e-1,adagrad=False)
+    Sk,Fk,Su,Fu = reconstruct_cpu(Y,Sk,Fk,Su,Fu,Nframes=2,nIter=int(1e5),eta=1e-2,adagrad=False)
     # Sk,Fk,Su,Fu = reconstruct_theano(Y,Sk,Fk,Su,Fu,Nframes,nIter)
 
     # Fu_nuc = Fu  # zeros(size(Fu));
