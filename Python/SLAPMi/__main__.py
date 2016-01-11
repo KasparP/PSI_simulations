@@ -133,7 +133,7 @@ def reconstruct_cpu(Y,Sk,Fk,Su,Fu,Nframes,nIter,eta,adagrad):
             tidx2 = random.sample(range(0, T), Nframes)
         else:
             tidx2 = range(T)
-        if (ITER % 50) == 0:
+        if (ITER % 100) == 0:
             tidx = range(T)
         else:
             tidx = tidx2
@@ -157,7 +157,7 @@ def reconstruct_cpu(Y,Sk,Fk,Su,Fu,Nframes,nIter,eta,adagrad):
 
 
         print '[Iter: %d] Loss: %f' % (ITER,loss[ITER])
-        if (ITER % 50) == 0:
+        if (ITER % 100) == 0:
             np.save('loss.npy',loss)
 
         # compute gradients
@@ -167,10 +167,10 @@ def reconstruct_cpu(Y,Sk,Fk,Su,Fu,Nframes,nIter,eta,adagrad):
         dSk.fill(0.0)
         bar = progressbar.ProgressBar()
         for it in bar(tidx2):
-            dFu[:, it] = ((Pu(it).dot(Su)).T).dot(E[:, it])
             dSu = dSu + np.outer((Pu(it).T).dot(E[:, it]),Fu[:,it])
-            dFk[:, it] = ((Pk(it).dot(Sk)).T).dot(E[:, it])
             dSk = dSk + np.outer((Pk(it).T).dot(E[:, it]),Fk[:,it])
+            dFu[:, it] = ((Pu(it).dot(Su)).T).dot(E[:, it])
+            dFk[:, it] = ((Pk(it).dot(Sk)).T).dot(E[:, it])
         dSu = dSu/len(tidx2)
         dSk = dSk/len(tidx2)
         print 'Done. ', time.time() - tic, 'seconds'
@@ -179,35 +179,40 @@ def reconstruct_cpu(Y,Sk,Fk,Su,Fu,Nframes,nIter,eta,adagrad):
         if adagrad == True:
             etaSu2 = etaSu2 + np.square(dSu)
             etaSk2 = etaSk2 + np.square(dSk)
-            etaFu2 = etaFu2 + np.square(np.mean(np.fabs(dFu)))
-            etaFk2 = etaFk2 + np.square(np.mean(np.fabs(dFk)))
+            etaFu2 = etaFu2 + np.square(np.mean(np.fabs(dFu[:,tidx2])))
+            etaFk2 = etaFk2 + np.square(np.mean(np.fabs(dFk[:,tidx2])))
             # etaFu2[:,tidx2] = etaFu2[:,tidx2] + np.square(dFu[:,tidx2])
             # etaFk2[:,tidx2] = etaFk2[:,tidx2] + np.square(dFk[:,tidx2])
 
-            etaSu = 1./(1e4+np.sqrt(etaSu2))
-            etaSk = 1./(1e4+np.sqrt(etaSk2))
-            etaFu = 1./(1e4+np.sqrt(etaFu2))
-            etaFk = 1./(1e4+np.sqrt(etaFk2))
+            etaSu = 1./(5e4+np.sqrt(etaSu2))
+            etaSk = 1./(5e4+np.sqrt(etaSk2))
+            etaFu = 1./(5e4+np.sqrt(etaFu2))
+            etaFk = 1./(5e4+np.sqrt(etaFk2))
             # etaFu[:,tidx2] = 1./(1e4+np.sqrt(etaFu2[:,tidx2]))
             # etaFk[:,tidx2] = 1./(1e4+np.sqrt(etaFk2[:,tidx2]))
+
+            # compute updates
+            deltaSu = eta*etaSu*dSu
+            deltaSk = eta*etaSk*dSk
+            deltaFu[:,tidx2] = eta*etaFu[:,tidx2]*dFu[:,tidx2]
+            deltaFk[:,tidx2] = eta*etaFk[:,tidx2]*dFk[:,tidx2]
+
         else:
             etaSu = 1
             etaSk = 1
             etaFu = 1
             etaFk = 1
 
-        # compute updates
-        deltaSu = eta*etaSu*dSu
-        deltaSk = eta*etaSk*dSk
-        deltaFu[:,tidx2] = eta*etaFu*dFu[:,tidx2]
-        deltaFk[:,tidx2] = eta*etaFk*dFk[:,tidx2]
-        # deltaFu = eta*etaFu[:,tidx2]*dFu[:,tidx2]
-        # deltaFk = eta*etaFk[:,tidx2]*dFk[:,tidx2]
+            # compute updates
+            deltaSu = eta*etaSu*dSu
+            deltaSk = eta*etaSk*dSk
+            deltaFu[:,tidx2] = eta*etaFu*dFu[:,tidx2]
+            deltaFk[:,tidx2] = eta*etaFk*dFk[:,tidx2]
 
-        print 'mean step size Su = %f' % np.mean(np.fabs(deltaSu.ravel()))
-        print 'mean step size Sk = %f' % np.mean(np.fabs(deltaSk.ravel()))
-        print 'mean step size Fu[:,it] = %f' % np.mean(np.fabs(deltaFu[:,it].ravel()))
-        print 'mean step size Fk[:,it] = %f' % np.mean(np.fabs(deltaFk[:,it].ravel()))
+        print 'mean (stepsize,eta) Su = (%f , %f)' % (np.mean(np.fabs(deltaSu.ravel())),np.mean(etaSu))
+        print 'mean (stepsize,eta) Sk = (%f , %f)' % (np.mean(np.fabs(deltaSk.ravel())),np.mean(etaSk))
+        print 'mean (stepsize,eta) Fu[:,it] = (%f , %f)' % (np.mean(np.fabs(deltaFu[:,it].ravel())),np.mean(etaFu))
+        print 'mean (stepsize,eta) Fk[:,it] = (%f , %f)' % (np.mean(np.fabs(deltaFk[:,it].ravel())),np.mean(etaFk))
 
         # clip gradients if they are too big
         np.clip(deltaSu,-1e3,1e3,out=deltaSu)
@@ -276,7 +281,7 @@ if __name__ == '__main__':
 
     print(opts.P.shape)
     obs.data_in = opts.P[mask, :].T.dot(groundtruth.seg[mask, :]).dot(groundtruth.activity)
-    # obs.data_in = obs.data_in[:,:50]
+    # obs.data_in = obs.data_in[:,:25]
 
     [Nvox, Nproj] = opts.P.shape
     [Nproj, T] = obs.data_in.shape
@@ -301,7 +306,7 @@ if __name__ == '__main__':
 
     print 'Done initialization!', time.time() - tic, 'seconds'
 
-    Sk,Fk,Su,Fu = reconstruct_cpu(Y,Sk,Fk,Su,Fu,Nframes=2,nIter=int(1e5),eta=1e-1,adagrad=False)
+    Sk,Fk,Su,Fu = reconstruct_cpu(Y,Sk,Fk,Su,Fu,Nframes=2,nIter=int(1e5),eta=1e4,adagrad=True)
     # Sk,Fk,Su,Fu = reconstruct_theano(Y,Sk,Fk,Su,Fu,Nframes,nIter)
 
     # Fu_nuc = Fu  # zeros(size(Fu));
