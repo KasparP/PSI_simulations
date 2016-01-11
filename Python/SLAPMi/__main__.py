@@ -184,12 +184,12 @@ def reconstruct_cpu(Y,Sk,Fk,Su,Fu,Nframes,nIter,eta,adagrad):
             # etaFu2[:,tidx2] = etaFu2[:,tidx2] + np.square(dFu[:,tidx2])
             # etaFk2[:,tidx2] = etaFk2[:,tidx2] + np.square(dFk[:,tidx2])
 
-            etaSu = 1./(np.finfo(np.float).eps+np.sqrt(etaSu2))
-            etaSk = 1./(np.finfo(np.float).eps+np.sqrt(etaSk2))
-            etaFu = 1./(np.finfo(np.float).eps+np.sqrt(etaFu2))
-            etaFk = 1./(np.finfo(np.float).eps+np.sqrt(etaFk2))
-            # etaFu[:,tidx2] = 1./(np.finfo(np.float).eps+np.sqrt(etaFu2[:,tidx2]))
-            # etaFk[:,tidx2] = 1./(np.finfo(np.float).eps+np.sqrt(etaFk2[:,tidx2]))
+            etaSu = 1./(1e4+np.sqrt(etaSu2))
+            etaSk = 1./(1e4+np.sqrt(etaSk2))
+            etaFu = 1./(1e4+np.sqrt(etaFu2))
+            etaFk = 1./(1e4+np.sqrt(etaFk2))
+            # etaFu[:,tidx2] = 1./(1e4+np.sqrt(etaFu2[:,tidx2]))
+            # etaFk[:,tidx2] = 1./(1e4+np.sqrt(etaFk2[:,tidx2]))
         else:
             etaSu = 1
             etaSk = 1
@@ -295,7 +295,7 @@ if __name__ == '__main__':
 
     print 'Done initialization!', time.time() - tic, 'seconds'
 
-    Sk,Fk,Su,Fu = reconstruct_cpu(Y,Sk,Fk,Su,Fu,Nframes=2,nIter=int(1e5),eta=1e-2,adagrad=False)
+    Sk,Fk,Su,Fu = reconstruct_cpu(Y,Sk,Fk,Su,Fu,Nframes=2,nIter=int(1e5),eta=1e-1,adagrad=False)
     # Sk,Fk,Su,Fu = reconstruct_theano(Y,Sk,Fk,Su,Fu,Nframes,nIter)
 
     # Fu_nuc = Fu  # zeros(size(Fu));
