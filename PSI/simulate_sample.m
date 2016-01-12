@@ -106,11 +106,23 @@ if opts.sim.unsuspected.N
         end
     end
     
+    %generate Su
+    un_kernel = double(getnhood(strel('disk',ceil(1.6/opts.image.XYscale))));
+    un_radius = floor(size(un_kernel,1)/2);
+    GT.unsuspected.Su = zeros(numel(GT.IM), opts.sim.unsuspected.N);
+    for n = 1:opts.sim.unsuspected.N
+        S = zeros(size(GT.IM));
+        xs = (-un_radius:un_radius) + GT.unsuspected.pos(1,n);
+        ys = (-un_radius:un_radius) + GT.unsuspected.pos(2,n);
+        S(xs,ys) =  un_kernel*opts.scope.brightness*opts.sim.amp*opts.sim.unsuspected.amp;
+        GT.unsuspected.Su(:,n) = S(:);
+    end
+    
     if strcmpi(opts.sim.dynamics, 'smooth')
-        GT.unsuspected.activity = opts.sim.amp .* convn(poissrnd(1/(50*opts.framerate), opts.sim.unsuspected.N, opts.nframes), kernel ,'same');
+        GT.unsuspected.Fu = opts.sim.amp .* convn(poissrnd(1/(50*opts.framerate), opts.sim.unsuspected.N, opts.nframes), kernel ,'same');
     else %random
-        GT.unsuspected.activity = opts.sim.amp .* convn(poissrnd(1/(50*opts.framerate), opts.sim.unsuspected.N, max(500*length(kernel), opts.nframes)), kernel ,'same');
-        GT.unsuspected.activity =  GT.unsuspected.activity(:, randperm(size(GT.unsuspected.activity,2),opts.nframes));
+        GT.unsuspected.Fu = opts.sim.amp .* convn(poissrnd(1/(50*opts.framerate), opts.sim.unsuspected.N, max(500*length(kernel), opts.nframes)), kernel ,'same');
+        GT.unsuspected.Fu =  GT.unsuspected.Fu(:, randperm(size(GT.unsuspected.Fu,2),opts.nframes));
     end
 end
 

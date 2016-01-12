@@ -30,8 +30,25 @@ opts.seg.dist_thresh = 0.75;  %in microns, the distance between seeds
 opts.seg.nh_size = 28;
 disp('Segmenting image for reconstruction')
 S_init = segment_2D(obs.IM, opts);
+S_init = S_init.seg;
 
+
+%Make this a format that python can read
+ground_truth.bw = ground_truth.seg.bw;
+ground_truth.seg = ground_truth.seg.seg;
+%ground_truth.M = reshape(M, size(M,1)*size(M,2), size(M,3));
+
+ground_truth.Fu = ground_truth.unsuspected.Fu;
+ground_truth.Su = ground_truth.unsuspected.Su;
+
+
+check_IM = ground_truth.IM(:);
+check_IM = check_IM + ground_truth.seg*(ground_truth.activity(:,1));
+check_IM = check_IM+ground_truth.Su*(1+ground_truth.Fu(:,1));
+%check that M(:,:,1) = check_im
+if abs(sum(sum(M(:,:,1)-reshape(check_IM, size(ground_truth.IM)))))>100
+    keyboard;
+end
 
 
 save([basedir filesep problemname '.mat'], 'ground_truth', 'opts', 'obs', 'S_init');
-keyboard
