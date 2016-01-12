@@ -101,18 +101,21 @@ def lossfun_gt():  # WE NEED A PROPER GT LOSS FUNCTION! Previous one was sensiti
     return l_gt
 
 
-def reconstruct_cpu(Y,Sk,Fk,Su,Fu,Nframes,nIter,eta,adagrad):
+def reconstruct_cpu(Y,Sk,Fk,Su,Fu,Nframes,nIter,eta,mu,adagrad):
     print 'Y (min,max): (%f,%f)' % (Y.min(),Y.max())
+    Nproj, T = Y.shape
+    Nvox, Nsk = Sk.shape
+    Nvox, Nsu = Su.shape
 
     loss = np.zeros((nIter))
     dSu = np.empty(Su.shape)
     dSk = np.empty(Sk.shape)
     dFu = np.empty(Fu.shape)
     dFk = np.empty(Fk.shape)
-    deltaSu = np.empty(Su.shape)
-    deltaSk = np.empty(Sk.shape)
-    deltaFu = np.empty(Fu.shape)
-    deltaFk = np.empty(Fk.shape)
+    deltaSu = np.zeros(Su.shape)
+    deltaSk = np.zeros(Sk.shape)
+    deltaFu = np.zeros(Fu.shape)
+    deltaFk = np.zeros(Fk.shape)
     etaSu = np.empty(Su.shape)
     etaSk = np.empty(Sk.shape)
     etaFu = np.empty(Fu.shape)
@@ -158,7 +161,7 @@ def reconstruct_cpu(Y,Sk,Fk,Su,Fu,Nframes,nIter,eta,adagrad):
 
         print '[Iter: %d] Loss: %f' % (ITER,loss[ITER])
         if (ITER % 100) == 0:
-            np.save('loss.npy',loss)
+            io.savemat('output.mat',{'loss':loss,'Y':Y,'Xhat':Xhat,'Sk':Sk,'Fk':Fk,'Su':Su,'Fu':Fu})
 
         # compute gradients
         print ('Computing gradients... ')
@@ -191,11 +194,11 @@ def reconstruct_cpu(Y,Sk,Fk,Su,Fu,Nframes,nIter,eta,adagrad):
             # etaFu[:,tidx2] = 1./(1e4+np.sqrt(etaFu2[:,tidx2]))
             # etaFk[:,tidx2] = 1./(1e4+np.sqrt(etaFk2[:,tidx2]))
 
-            # compute updates
-            deltaSu = eta*etaSu*dSu
-            deltaSk = eta*etaSk*dSk
-            deltaFu[:,tidx2] = eta*etaFu[:,tidx2]*dFu[:,tidx2]
-            deltaFk[:,tidx2] = eta*etaFk[:,tidx2]*dFk[:,tidx2]
+            # compute updates, with momentum
+            deltaSu = mu*deltaSu + eta*etaSu*dSu
+            deltaSk = mu*deltaSk + eta*etaSk*dSk
+            deltaFu[:,tidx2] = mu*deltaFu[:,tidx2] + eta*etaFu[:,tidx2]*dFu[:,tidx2]
+            deltaFk[:,tidx2] = mu*deltaFk[:,tidx2] + eta*etaFk[:,tidx2]*dFk[:,tidx2]
 
         else:
             etaSu = 1
@@ -253,7 +256,9 @@ def reconstruct_theano(Y,Sk,Fk,Su,Fu):
 
     return (loss, Sk, Fk, Su, Fu)
 
-if __name__ == '__main__':
+def prepexpt():
+    global P0
+    global mask
     # fn = '../PSI/Problem_nonoise_v1.mat'
     fn = '../../PSI/PRECOMP_nonoise_py.mat'
 
@@ -281,7 +286,6 @@ if __name__ == '__main__':
 
     print(opts.P.shape)
     obs.data_in = opts.P[mask, :].T.dot(groundtruth.seg[mask, :]).dot(groundtruth.activity)
-    # obs.data_in = obs.data_in[:,:25]
 
     [Nvox, Nproj] = opts.P.shape
     [Nproj, T] = obs.data_in.shape
@@ -306,27 +310,4 @@ if __name__ == '__main__':
 
     print 'Done initialization!', time.time() - tic, 'seconds'
 
-    Sk,Fk,Su,Fu = reconstruct_cpu(Y,Sk,Fk,Su,Fu,Nframes=2,nIter=int(1e5),eta=1e4,adagrad=True)
-    # Sk,Fk,Su,Fu = reconstruct_theano(Y,Sk,Fk,Su,Fu,Nframes,nIter)
-
-    # Fu_nuc = Fu  # zeros(size(Fu));
-    # Fu_nn = Fu  # zeros(size(Fu));
-    # Fu_TF = Fu  # zeros(size(Fu));
-    # Fu_TF_z = Fu  # zeros(size(Fu));
-    # Fu_TF_u = Fu  # zeros(size(Fu));
-    # Fk_nuc = Fk  # zeros(size(Fk));
-    # Fk_nn = Fk  # zeros(size(Fk));
-    # Fk_TF = Fk  # zeros(size(Fk));
-    # Fk_TF_z = Fk  # zeros(size(Fk));
-    # Fk_TF_u = Fk  # zeros(size(Fk));
-
-    # U_X = 0 * sp.ones((Np, T))
-    # U_Fu_nuc = 0 * sp.ones(Fu.shape)
-    # U_Fu_TF = 0 * sp.ones(Fu.shape)
-    # U_Fu_nn = 0 * sp.ones(Fu.shape)
-    # U_Fk_nuc = 0 * sp.ones(Fk.shape)
-    # U_Fk_TF = 0 * sp.ones(Fk.shape)
-    # U_Fk_nn = 0 * sp.ones(Fk.shape)
-    # U_Su_nn = 0 * sp.ones(Su.shape)
-    # U_Sk_nn = 0 * sp.ones(Sk.shape)
-
+    return (Y,Sk,Fk,Su,Fu)
