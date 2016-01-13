@@ -101,12 +101,13 @@ def lossfun_gt():  # WE NEED A PROPER GT LOSS FUNCTION! Previous one was sensiti
     return l_gt
 
 
-def reconstruct_cpu(Y,Sk,Fk,Su,Fu,Nframes,nIter,eta,mu,adagrad):
+def reconstruct_cpu(Y,Sk,Fk,Su,Fu,Nframes,nIter,eta,mu,adagrad,groundtruth=None):
     print 'Y (min,max): (%f,%f)' % (Y.min(),Y.max())
     Nproj, T = Y.shape
     Nvox, Nsk = Sk.shape
     Nvox, Nsu = Su.shape
 
+    loss_gt = np.zeros((nIter))
     loss = np.zeros((nIter))
     dSu = np.empty(Su.shape)
     dSk = np.empty(Sk.shape)
@@ -158,10 +159,19 @@ def reconstruct_cpu(Y,Sk,Fk,Su,Fu,Nframes,nIter,eta,mu,adagrad):
         # loss[ITER] = lossfun()
         loss[ITER] = 0.5*np.mean(np.square(E[:,tidx]).ravel())
 
+        if groundtruth is not None:
+            recon = Su.dot(Fu[:,tidx])
+            recon[mask,:] += Sk.dot(Fk[:,tidx])
+            recon_gt = ndarray.reshape(groundtruth.IM, (-1,1)) + groundtruth.Su.dot(groundtruth.Fu[:,tidx]) + groundtruth.seg.dot(groundtruth.activity[:,tidx])
+            loss_gt[ITER] = sp.linalg.norm(recon - recon_gt)
 
         print '[Iter: %d] Loss: %f' % (ITER,loss[ITER])
         if (ITER % 100) == 0:
-            io.savemat('output.mat',{'loss':loss,'Y':Y,'Xhat':Xhat,'Sk':Sk,'Fk':Fk,'Su':Su,'Fu':Fu})
+            if groundtruth is None:
+                io.savemat('output.mat',{'loss':loss,'Y':Y,'Xhat':Xhat,'Sk':Sk,'Fk':Fk,'Su':Su,'Fu':Fu})
+            else:
+                io.savemat('output.mat',{'loss':loss,'loss_gt':loss_gt, 'Y':Y,'Xhat':Xhat,'Sk':Sk,'Fk':Fk,'Su':Su,'Fu':Fu, 'recon':recon, 'recon_gt':recon_gt, 'IM':groundtruth.IM})
+
 
         # compute gradients
         print ('Computing gradients... ')
@@ -241,6 +251,7 @@ def reconstruct_cpu(Y,Sk,Fk,Su,Fu,Nframes,nIter,eta,mu,adagrad):
 
     return (loss, Sk, Fk, Su, Fu)
 
+
 def reconstruct_theano(Y,Sk,Fk,Su,Fu):
 
     # Set up a matrix factorization problem to optimize.
@@ -256,11 +267,12 @@ def reconstruct_theano(Y,Sk,Fk,Su,Fu):
 
     return (loss, Sk, Fk, Su, Fu)
 
-def prepexpt():
+
+def prepexpt(fn = '../PSI/Problem_nonoise_v1.mat'):
     global P0
     global mask
     # fn = '../PSI/Problem_nonoise_v1.mat'
-    fn = '../../PSI/PRECOMP_nonoise_py.mat'
+    # fn = '../../PSI/PRECOMP_nonoise_py.mat'
 
     # def initialize(fn):
     D = io.loadmat(fn, struct_as_record=False, squeeze_me=True)
@@ -310,4 +322,4 @@ def prepexpt():
 
     print 'Done initialization!', time.time() - tic, 'seconds'
 
-    return (Y,Sk,Fk,Su,Fu)
+    return (Y,Sk,Fk,Su,Fu,groundtruth)

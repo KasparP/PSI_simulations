@@ -40,15 +40,15 @@ ground_truth.seg = ground_truth.seg.seg;
 
 ground_truth.Fu = ground_truth.unsuspected.Fu;
 ground_truth.Su = ground_truth.unsuspected.Su;
-
-
-check_IM = ground_truth.IM(:);
-check_IM = check_IM + ground_truth.seg*(ground_truth.activity(:,1));
-check_IM = check_IM+ground_truth.Su*(1+ground_truth.Fu(:,1));
-%check that M(:,:,1) = check_im
-if abs(sum(sum(M(:,:,1)-reshape(check_IM, size(ground_truth.IM)))))>100
-    keyboard;
-end
+ground_truth.unsuspectedPos = ground_truth.unsuspected.pos
+ground_truth = rmfield(ground_truth, 'unsuspected');
+% check_IM = ground_truth.IM(:);
+% check_IM = check_IM + ground_truth.seg*(ground_truth.activity(:,1));
+% check_IM = check_IM+ground_truth.Su*(1+ground_truth.Fu(:,1));
+% %check that M(:,:,1) = check_im
+% if abs(sum(sum(M(:,:,1)-reshape(check_IM, size(ground_truth.IM)))))>100
+%     keyboard;
+% end
 
 
 save([basedir filesep problemname '.mat'], 'ground_truth', 'opts', 'obs', 'S_init');
