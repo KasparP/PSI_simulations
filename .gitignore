@@ -55,3 +55,6 @@ $RECYCLE.BIN/
 Network Trash Folder
 Temporary Items
 .apdisk
+*.pyc
+Python/Problem_nonoise_v1.mat
+*.mat

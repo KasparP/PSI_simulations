@@ -7,6 +7,7 @@ import time
 import random
 import matplotlib.pyplot as plt
 import progressbar
+import os
 # import theano
 # import theano.tensor as TT
 
@@ -101,7 +102,8 @@ def lossfun_gt():  # WE NEED A PROPER GT LOSS FUNCTION! Previous one was sensiti
     return l_gt
 
 
-def reconstruct_cpu(Y,Sk,Fk,Su,Fu,Nframes,nIter,eta,mu,adagrad,groundtruth=None):
+def reconstruct_cpu(Y,Sk,Fk,Su,Fu,Nframes,nIter,eta,mu,adagrad,groundtruth=None, out_fn = 'output.mat'):
+    print os.getcwd()
     print 'Y (min,max): (%f,%f)' % (Y.min(),Y.max())
     Nproj, T = Y.shape
     Nvox, Nsk = Sk.shape
@@ -146,8 +148,8 @@ def reconstruct_cpu(Y,Sk,Fk,Su,Fu,Nframes,nIter,eta,mu,adagrad,groundtruth=None)
         print ('Pre-computing P*[Sk*Fk+Su*Fu]... ')
         tic = time.time()
         # b=0;
-        bar = progressbar.ProgressBar()
-        for it in bar(tidx):
+        #bar = progressbar.ProgressBar()
+        for it in tidx: #bar(tidx):
             PSFu[:, it] = Pu(it).dot(Su.dot(Fu[:, it]))
             PSFk[:, it] = Pk(it).dot(Sk.dot(Fk[:, it]))
 
@@ -168,9 +170,9 @@ def reconstruct_cpu(Y,Sk,Fk,Su,Fu,Nframes,nIter,eta,mu,adagrad,groundtruth=None)
         print '[Iter: %d] Loss: %f' % (ITER,loss[ITER])
         if (ITER % 100) == 0:
             if groundtruth is None:
-                io.savemat('output.mat',{'loss':loss,'Y':Y,'Xhat':Xhat,'Sk':Sk,'Fk':Fk,'Su':Su,'Fu':Fu})
+                io.savemat(out_fn,{'loss':loss,'Y':Y,'Xhat':Xhat,'Sk':Sk,'Fk':Fk,'Su':Su,'Fu':Fu})
             else:
-                io.savemat('output.mat',{'loss':loss,'loss_gt':loss_gt, 'Y':Y,'Xhat':Xhat,'Sk':Sk,'Fk':Fk,'Su':Su,'Fu':Fu, 'recon':recon, 'recon_gt':recon_gt, 'IM':groundtruth.IM})
+                io.savemat(out_fn,{'loss':loss,'loss_gt':loss_gt, 'Y':Y,'Xhat':Xhat,'Sk':Sk,'Fk':Fk,'Su':Su,'Fu':Fu, 'recon':recon, 'recon_gt':recon_gt, 'IM':groundtruth.IM})
 
 
         # compute gradients
@@ -178,8 +180,8 @@ def reconstruct_cpu(Y,Sk,Fk,Su,Fu,Nframes,nIter,eta,mu,adagrad,groundtruth=None)
         tic = time.time()
         dSu.fill(0.0)
         dSk.fill(0.0)
-        bar = progressbar.ProgressBar()
-        for it in bar(tidx2):
+        #bar = progressbar.ProgressBar()
+        for it in tidx2: #bar(tidx2):
             dSu = dSu + np.outer((Pu(it).T).dot(E[:, it]),Fu[:,it])
             dSk = dSk + np.outer((Pk(it).T).dot(E[:, it]),Fk[:,it])
             dFu[:, it] = ((Pu(it).dot(Su)).T).dot(E[:, it])
@@ -268,7 +270,7 @@ def reconstruct_theano(Y,Sk,Fk,Su,Fu):
     return (loss, Sk, Fk, Su, Fu)
 
 
-def prepexpt(fn = '../PSI/Problem_nonoise_v1.mat'):
+def prepexpt(fn = '../Problem_nonoise_v1.mat'):
     global P0
     global mask
     # fn = '../PSI/Problem_nonoise_v1.mat'
