@@ -192,23 +192,23 @@ def reconstruct_cpu(Y,Sk,Fk,Su,Fu,Nframes,nIter,eta,mu,adagrad,groundtruth=None)
         if adagrad == True:
             etaSu2 = etaSu2 + np.square(dSu)
             etaSk2 = etaSk2 + np.square(dSk)
-            etaFu2 = etaFu2 + np.square(np.mean(np.fabs(dFu[:,tidx2])))
-            etaFk2 = etaFk2 + np.square(np.mean(np.fabs(dFk[:,tidx2])))
-            # etaFu2[:,tidx2] = etaFu2[:,tidx2] + np.square(dFu[:,tidx2])
-            # etaFk2[:,tidx2] = etaFk2[:,tidx2] + np.square(dFk[:,tidx2])
+            # etaFu2 = etaFu2 + np.square(np.mean(np.fabs(dFu[:,tidx2])))
+            # etaFk2 = etaFk2 + np.square(np.mean(np.fabs(dFk[:,tidx2])))
+            etaFu2[:,tidx2] = etaFu2[:,tidx2] + np.square(dFu[:,tidx2])
+            etaFk2[:,tidx2] = etaFk2[:,tidx2] + np.square(dFk[:,tidx2])
 
-            etaSu = 1./(5e4+np.sqrt(etaSu2))
-            etaSk = 1./(5e4+np.sqrt(etaSk2))
-            etaFu = 1./(5e4+np.sqrt(etaFu2))
-            etaFk = 1./(5e4+np.sqrt(etaFk2))
-            # etaFu[:,tidx2] = 1./(1e4+np.sqrt(etaFu2[:,tidx2]))
-            # etaFk[:,tidx2] = 1./(1e4+np.sqrt(etaFk2[:,tidx2]))
+            etaSu = 1./(5e4+np.sqrt(etaSu2).real)
+            etaSk = 1./(5e4+np.sqrt(etaSk2).real)
+            # etaFu = 1./(5e4+np.sqrt(etaFu2).real)
+            # etaFk = 1./(5e4+np.sqrt(etaFk2).real)
+            etaFu[:,tidx2] = 1./(5e4+np.sqrt(etaFu2[:,tidx2]).real)
+            etaFk[:,tidx2] = 1./(5e4+np.sqrt(etaFk2[:,tidx2]).real)
 
             # compute updates, with momentum
-            deltaSu = mu*deltaSu + eta*etaSu*dSu
-            deltaSk = mu*deltaSk + eta*etaSk*dSk
-            deltaFu[:,tidx2] = mu*deltaFu[:,tidx2] + eta*etaFu[:,tidx2]*dFu[:,tidx2]
-            deltaFk[:,tidx2] = mu*deltaFk[:,tidx2] + eta*etaFk[:,tidx2]*dFk[:,tidx2]
+            deltaSu = mu*deltaSu + (1-mu)*eta*etaSu*dSu
+            deltaSk = mu*deltaSk + (1-mu)*eta*etaSk*dSk
+            deltaFu[:,tidx2] = mu*deltaFu[:,tidx2] + (1-mu)*eta*etaFu[:,tidx2]*dFu[:,tidx2]
+            deltaFk[:,tidx2] = mu*deltaFk[:,tidx2] + (1-mu)*eta*etaFk[:,tidx2]*dFk[:,tidx2]
 
         else:
             etaSu = 1
@@ -228,10 +228,10 @@ def reconstruct_cpu(Y,Sk,Fk,Su,Fu,Nframes,nIter,eta,mu,adagrad,groundtruth=None)
         print 'mean (stepsize,eta) Fk[:,it] = (%f , %f)' % (np.mean(np.fabs(deltaFk[:,it].ravel())),np.mean(etaFk))
 
         # clip gradients if they are too big
-        np.clip(deltaSu,-1e3,1e3,out=deltaSu)
-        np.clip(deltaSk,-1e3,1e3,out=deltaSk)
-        np.clip(deltaFu,-1e3,1e3,out=deltaFu)
-        np.clip(deltaFk,-1e3,1e3,out=deltaFk)
+        np.clip(deltaSu,-1e2,1e2,out=deltaSu)
+        np.clip(deltaSk,-1e2,1e2,out=deltaSk)
+        np.clip(deltaFu,-1e2,1e2,out=deltaFu)
+        np.clip(deltaFk,-1e2,1e2,out=deltaFk)
 
         # update
         Su = Su + deltaSu
