@@ -103,7 +103,7 @@ def lossfun_gt():  # WE NEED A PROPER GT LOSS FUNCTION! Previous one was sensiti
 
 
 def reconstruct_cpu(Y,Sk,Fk,Su,Fu,Nframes,nIter,eta,mu,adagrad,groundtruth=None, out_fn = 'output.mat'):
-    print os.getcwd()
+    print 'Working in: ', os.getcwd()
     print 'Y (min,max): (%f,%f)' % (Y.min(),Y.max())
     Nproj, T = Y.shape
     Nvox, Nsk = Sk.shape
@@ -144,14 +144,28 @@ def reconstruct_cpu(Y,Sk,Fk,Su,Fu,Nframes,nIter,eta,mu,adagrad,groundtruth=None,
         else:
             tidx = tidx2
 
-
         print ('Pre-computing P*[Sk*Fk+Su*Fu]... ')
         tic = time.time()
         # b=0;
         #bar = progressbar.ProgressBar()
         for it in tidx: #bar(tidx):
-            PSFu[:, it] = Pu(it).dot(Su.dot(Fu[:, it]))
-            PSFk[:, it] = Pk(it).dot(Sk.dot(Fk[:, it]))
+            # if it == tidx[0]:
+                # print type(Fk)
+                # print type(Fu)
+                # print type(Sk)
+                # print type(Su)
+                # print '-----'
+                # print Pk(it).shape
+                # print Sk.shape
+                # print Pk(it).shape
+                # print Sk.dot(Fk[:, it]).shape
+                # print Pk(it).dot(np.reshape(Sk.dot(Fk[:, it]), (-1, 1))).shape
+                # print np.ravel(Pk(it).dot(np.reshape(Sk.dot(Fk[:, it]), (-1, 1)))).shape
+                # print PSFk[:,it].shape
+                # print it
+            PSFu[:, [it]] = Pu(it).dot(Su.dot(Fu[:, [it]]))
+            #PSFk[:, it] = Pk(it).dot(Sk.dot(Fk[:, it]))
+            PSFk[:, [it]] = np.ravel(Pk(it).dot(np.reshape(Sk.dot(Fk[:, [it]]), (-1, 1))))  #necessary because Sk is sparse matrix, not array. Could avoid ravel by converting all arrays to matrices?
 
         Xhat[:, tidx] = PSFu[:, tidx] + PSFk[:, tidx]
         E[:, tidx] = Y[:, tidx] - Xhat[:, tidx]
@@ -160,19 +174,21 @@ def reconstruct_cpu(Y,Sk,Fk,Su,Fu,Nframes,nIter,eta,mu,adagrad,groundtruth=None,
         ## Compute loss
         # loss[ITER] = lossfun()
         loss[ITER] = 0.5*np.mean(np.square(E[:,tidx]).ravel())
-
         if groundtruth is not None:
-            recon = Su.dot(Fu[:,tidx])
-            recon[mask,:] += Sk.dot(Fk[:,tidx])
-            recon_gt = ndarray.reshape(groundtruth.IM, (-1,1)) + groundtruth.Su.dot(groundtruth.Fu[:,tidx]) + groundtruth.seg.dot(groundtruth.activity[:,tidx])
-            loss_gt[ITER] = sp.linalg.norm(recon - recon_gt)
+            maxind = sp.minimum(10, len(tidx))
+            recon = Su.dot(Fu[:,[tidx[0:maxind-1]]])  #kinda slow
+            recon[mask,:] += Sk.dot(Fk[:,[tidx[0:maxind-1]]])
+            print 'Reconstructed image norm: ', sp.linalg.norm(recon)
+            recon_gt = ndarray.reshape(groundtruth.IM, (-1,1)) + groundtruth.Su.dot(groundtruth.Fu[:,tidx[0:maxind-1]]) + groundtruth.seg.dot(groundtruth.activity[:,tidx[0:maxind-1]]) #really slow
+            print 'Ground truth image norm: ', sp.linalg.norm(recon_gt)
+            loss_gt[ITER] = sp.linalg.norm(recon - recon_gt)/maxind
 
         print '[Iter: %d] Loss: %f' % (ITER,loss[ITER])
         if (ITER % 100) == 0:
             if groundtruth is None:
                 io.savemat(out_fn,{'loss':loss,'Y':Y,'Xhat':Xhat,'Sk':Sk,'Fk':Fk,'Su':Su,'Fu':Fu})
             else:
-                io.savemat(out_fn,{'loss':loss,'loss_gt':loss_gt, 'Y':Y,'Xhat':Xhat,'Sk':Sk,'Fk':Fk,'Su':Su,'Fu':Fu, 'recon':recon, 'recon_gt':recon_gt, 'IM':groundtruth.IM})
+                io.savemat(out_fn,{'loss':loss,'loss_gt':loss_gt, 'Y':Y,'Xhat':Xhat,'Sk':Sk,'Fk':Fk,'Su':Su,'Fu':Fu, 'recon':recon[:,0], 'recon_gt':recon_gt[:,0], 'IM':groundtruth.IM})
 
 
         # compute gradients
@@ -303,8 +319,6 @@ def prepexpt(fn = '../Problem_nonoise_v1.mat'):
 
     [Nvox, Nproj] = opts.P.shape
     [Nproj, T] = obs.data_in.shape
-    Nsk = groundtruth.activity.shape[0]
-    Nsu = groundtruth.unsuspectedPos.shape[1]
 
     Sk0 = groundtruth.seg[mask, :]
     Fk0 = groundtruth.activity[:, :T]
@@ -315,8 +329,16 @@ def prepexpt(fn = '../Problem_nonoise_v1.mat'):
     Y = obs.data_in
     P0 = opts.P.T  # transpose
 
-    # TODO: improve initialization!
-    Sk = 1e-3 * sp.rand(Nvoxk, Nsk)  # +Sk0
+    #Nsk = groundtruth.seg.shape[1]
+    #Sk = 1e-3 * sp.rand(Nvoxk, Nsk)  # +Sk0
+    Sk = D['S_init']
+    Sk = Sk[mask,:]
+
+    Nsk = Sk.shape[1]
+    Nsu = groundtruth.unsuspectedPos.shape[1] #this can be varied
+
+    print '#Sk:', Nsk, '#Su:', Nsu
+
     Fk = 5e-1 * sp.rand(Nsk, T)  # +Fk0
 
     Su = 1e-3 * sp.rand(Nvox, Nsu)

@@ -1,6 +1,8 @@
 import os, sys
 #sys.path.append('/groups/turaga/home/turagas/research/PSI_simulations/Python/')
-sys.path.append('C:\Users\podgorskik\Dropbox (HHMI)\SLAPMi\Code\PSI_simulations\Python')
+#sys.path.append('C:\Users\podgorskik\Dropbox (HHMI)\SLAPMi\Code\PSI_simulations\Python')
+sys.path.append('/tier2/turaga/podgorskik/PSI_simulations/Python/')
+sys.path.append('Y:\podgorskik\PSI_simulations\Python')
 import SLAPMi
 
 (Y,Sk,Fk,Su,Fu, GT) = SLAPMi.prepexpt()
