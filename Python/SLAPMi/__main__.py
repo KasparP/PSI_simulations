@@ -149,7 +149,7 @@ def reconstruct_cpu(Y,Sk,Fk,Su,Fu,Nframes,nIter,eta,mu,adagrad,groundtruth=None,
         # b=0;
         #bar = progressbar.ProgressBar()
         for it in tidx: #bar(tidx):
-            # if it == tidx[0]:
+            if it == tidx[0]:
                 # print type(Fk)
                 # print type(Fu)
                 # print type(Sk)
@@ -159,13 +159,13 @@ def reconstruct_cpu(Y,Sk,Fk,Su,Fu,Nframes,nIter,eta,mu,adagrad,groundtruth=None,
                 # print Sk.shape
                 # print Pk(it).shape
                 # print Sk.dot(Fk[:, it]).shape
-                # print Pk(it).dot(np.reshape(Sk.dot(Fk[:, it]), (-1, 1))).shape
+                print Pk(it).dot(np.reshape(Sk.dot(Fk[:, [it]]), (-1, 1))).shape
                 # print np.ravel(Pk(it).dot(np.reshape(Sk.dot(Fk[:, it]), (-1, 1)))).shape
                 # print PSFk[:,it].shape
                 # print it
-            PSFu[:, [it]] = Pu(it).dot(Su.dot(Fu[:, [it]]))
-            #PSFk[:, it] = Pk(it).dot(Sk.dot(Fk[:, it]))
-            PSFk[:, [it]] = np.ravel(Pk(it).dot(np.reshape(Sk.dot(Fk[:, [it]]), (-1, 1))))  #necessary because Sk is sparse matrix, not array. Could avoid ravel by converting all arrays to matrices?
+            PSFu[:, it] = Pu(it).dot(Su.dot(Fu[:, it]))
+            PSFk[:, it] = Pk(it).dot(Sk.dot(Fk[:, it]))
+            #PSFk[:, [it]] = np.reshape(Pk(it).dot(np.reshape(Sk.dot(Fk[:, [it]]), (-1, 1))), (-1,1))  #necessary because Sk is sparse matrix, not array. Could avoid ravel by converting all arrays to matrices?
 
         Xhat[:, tidx] = PSFu[:, tidx] + PSFk[:, tidx]
         E[:, tidx] = Y[:, tidx] - Xhat[:, tidx]
@@ -176,12 +176,12 @@ def reconstruct_cpu(Y,Sk,Fk,Su,Fu,Nframes,nIter,eta,mu,adagrad,groundtruth=None,
         loss[ITER] = 0.5*np.mean(np.square(E[:,tidx]).ravel())
         if groundtruth is not None:
             maxind = sp.minimum(10, len(tidx))
-            recon = Su.dot(Fu[:,[tidx[0:maxind-1]]])  #kinda slow
-            recon[mask,:] += Sk.dot(Fk[:,[tidx[0:maxind-1]]])
+            recon = Su.dot(Fu[:,tidx[0:maxind-1]])  #kinda slow
+            recon[mask,:] += Sk.dot(Fk[:,tidx[0:maxind-1]])
             print 'Reconstructed image norm: ', sp.linalg.norm(recon)
             recon_gt = ndarray.reshape(groundtruth.IM, (-1,1)) + groundtruth.Su.dot(groundtruth.Fu[:,tidx[0:maxind-1]]) + groundtruth.seg.dot(groundtruth.activity[:,tidx[0:maxind-1]]) #really slow
             print 'Ground truth image norm: ', sp.linalg.norm(recon_gt)
-            loss_gt[ITER] = sp.linalg.norm(recon - recon_gt)/maxind
+            loss_gt[ITER] = sp.linalg.norm(recon - recon_gt)/np.sqrt(maxind)
 
         print '[Iter: %d] Loss: %f' % (ITER,loss[ITER])
         if (ITER % 100) == 0:
@@ -331,7 +331,7 @@ def prepexpt(fn = '../Problem_nonoise_v1.mat'):
 
     #Nsk = groundtruth.seg.shape[1]
     #Sk = 1e-3 * sp.rand(Nvoxk, Nsk)  # +Sk0
-    Sk = D['S_init']
+    Sk = D['S_init'].toarray()
     Sk = Sk[mask,:]
 
     Nsk = Sk.shape[1]
@@ -339,7 +339,8 @@ def prepexpt(fn = '../Problem_nonoise_v1.mat'):
 
     print '#Sk:', Nsk, '#Su:', Nsu
 
-    Fk = 5e-1 * sp.rand(Nsk, T)  # +Fk0
+    Fk = D['F_init']
+    #Fk = 5e-1 * sp.rand(Nsk, T)  # +Fk0
 
     Su = 1e-3 * sp.rand(Nvox, Nsu)
     Fu = 5e-2 * sp.rand(Nsu, T)

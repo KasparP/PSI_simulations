@@ -74,7 +74,7 @@ GT.nseeds = size(GT.seg.seg, 2);
 %ACTIVITY
 %generate a random smooth non-negative timeseries for each 'ground
 %truth' seed
-kernel = normpdf([-50*opts.framerate:50*opts.framerate], 0, 10*opts.framerate); %kernel in frames
+kernel = normpdf(-50*opts.framerate:50*opts.framerate, 0, 10*opts.framerate); %kernel in frames
 kernel = kernel./max(kernel);
 if strcmpi(opts.sim.dynamics, 'smooth')
     GT.activity = opts.sim.amp .* convn(poissrnd(1/(50*opts.framerate), GT.nseeds, opts.nframes), kernel ,'same');
@@ -114,7 +114,7 @@ if opts.sim.unsuspected.N
         S = zeros(size(GT.IM));
         xs = (-un_radius:un_radius) + GT.unsuspected.pos(1,n);
         ys = (-un_radius:un_radius) + GT.unsuspected.pos(2,n);
-        S(xs,ys) =  un_kernel*opts.scope.brightness*opts.sim.amp*opts.sim.unsuspected.amp;
+        S(xs,ys) =  un_kernel*opts.scope.brightness*opts.sim.unsuspected.amp;
         GT.unsuspected.Su(:,n) = S(:);
     end
     

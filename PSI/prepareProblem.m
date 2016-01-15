@@ -2,7 +2,7 @@ function prepareProblem
 
 opts = default_opts;
 
-basedir = fileparts(which('prepareProblem'))
+basedir = fileparts(which('prepareProblem'));
 problemname = 'Problem_nonoise_v1';
 
 %Begin Simulation
@@ -24,24 +24,29 @@ tic
 toc
 
 
+%Motion correction
+%motion = motion_SLAPmi(obs,opts);
 
-%change some of the segmentation parameters
+%Segmentation for reconstruction; this has different parameters to reflect
+%that this is unknown
 opts.seg.dist_thresh = 0.75;  %in microns, the distance between seeds
 opts.seg.nh_size = 28;
 disp('Segmenting image for reconstruction')
 S_init = segment_2D(obs.IM, opts);
-S_init = S_init.seg;
+
+S_bg = obs.IM; S_bg(S_init.bw) = 0;
+S_init = [S_init.seg S_bg(:)];
+F_init = reconstruct_lightweight(obs,opts, S_init); %this takes ~3s/frame
 
 
 %Make this a format that python can read
 ground_truth.bw = ground_truth.seg.bw;
 ground_truth.seg = ground_truth.seg.seg;
-%ground_truth.M = reshape(M, size(M,1)*size(M,2), size(M,3));
-
 ground_truth.Fu = ground_truth.unsuspected.Fu;
 ground_truth.Su = ground_truth.unsuspected.Su;
-ground_truth.unsuspectedPos = ground_truth.unsuspected.pos
+ground_truth.unsuspectedPos = ground_truth.unsuspected.pos;
 ground_truth = rmfield(ground_truth, 'unsuspected');
+
 % check_IM = ground_truth.IM(:);
 % check_IM = check_IM + ground_truth.seg*(ground_truth.activity(:,1));
 % check_IM = check_IM+ground_truth.Su*(1+ground_truth.Fu(:,1));
@@ -50,5 +55,4 @@ ground_truth = rmfield(ground_truth, 'unsuspected');
 %     keyboard;
 % end
 
-
-save([basedir filesep problemname '.mat'], 'ground_truth', 'opts', 'obs', 'S_init');
+save([basedir filesep problemname '.mat'], 'ground_truth', 'opts', 'obs', 'S_init', 'F_init');
