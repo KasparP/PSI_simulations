@@ -331,7 +331,7 @@ def prepexpt(fn = '../Problem_nonoise_v1.mat'):
 
     #Nsk = groundtruth.seg.shape[1]
     #Sk = 1e-3 * sp.rand(Nvoxk, Nsk)  # +Sk0
-    Sk = D['S_init'].toarray()
+    Sk = D['S_init'].toarray()  #convert sparse to full
     Sk = Sk[mask,:]
 
     Nsk = Sk.shape[1]
