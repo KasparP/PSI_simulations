@@ -13,6 +13,11 @@ import os
 
 # @jit
 
+#TO DO:
+#Make S-updates 'local'; don't add pixels far from existing ones
+    #this can be done by only considering nearby pixels in the first place, speeding up updates
+#Smoothness in F by adding penalty for distance from NND(F)
+    #need to implement fast NND in python
 
 def Pu(it):
     return P0  # function to motioncorrect P at a given frame
@@ -132,6 +137,11 @@ def reconstruct_cpu(Y,Sk,Fk,Su,Fu,Nframes,nIter,eta,mu,adagrad,groundtruth=None,
     PSFk = np.zeros(Y.shape)
     E = np.zeros(Y.shape)
 
+    Su_in = Su
+    Sk_in = Sk
+    Fu_in = Fu
+    Fk_in = Fk
+
     for ITER in range(nIter):
 
         # subsample in time
@@ -174,6 +184,10 @@ def reconstruct_cpu(Y,Sk,Fk,Su,Fu,Nframes,nIter,eta,mu,adagrad,groundtruth=None,
         ## Compute loss
         # loss[ITER] = lossfun()
         loss[ITER] = 0.5*np.mean(np.square(E[:,tidx]).ravel())
+        print '[Iter: %d] Loss: %f' % (ITER,loss[ITER])
+        print 'Ynorm: %f     Xnorm: %f' % (sp.linalg.norm(Y[:, tidx]), sp.linalg.norm(Xhat[:,tidx]))
+
+
         if groundtruth is not None:
             maxind = sp.minimum(10, len(tidx))
             recon = Su.dot(Fu[:,tidx[0:maxind-1]])  #kinda slow
@@ -183,12 +197,12 @@ def reconstruct_cpu(Y,Sk,Fk,Su,Fu,Nframes,nIter,eta,mu,adagrad,groundtruth=None,
             print 'Ground truth image norm: ', sp.linalg.norm(recon_gt)
             loss_gt[ITER] = sp.linalg.norm(recon - recon_gt)/np.sqrt(maxind)
 
-        print '[Iter: %d] Loss: %f' % (ITER,loss[ITER])
+
         if (ITER % 100) == 0:
             if groundtruth is None:
-                io.savemat(out_fn,{'loss':loss,'Y':Y,'Xhat':Xhat,'Sk':Sk,'Fk':Fk,'Su':Su,'Fu':Fu})
+                io.savemat(out_fn,{'loss':loss,'Y':Y,'Xhat':Xhat,'Sk':Sk,'Fk':Fk,'Su':Su,'Fu':Fu, 'mask':mask})
             else:
-                io.savemat(out_fn,{'loss':loss,'loss_gt':loss_gt, 'Y':Y,'Xhat':Xhat,'Sk':Sk,'Fk':Fk,'Su':Su,'Fu':Fu, 'recon':recon[:,0], 'recon_gt':recon_gt[:,0], 'IM':groundtruth.IM})
+                io.savemat(out_fn,{'loss':loss,'loss_gt':loss_gt, 'Y':Y,'Xhat':Xhat,'Sk':Sk,'Fk':Fk,'Su':Su,'Fu':Fu, 'recon':recon[:,0], 'recon_gt':recon_gt[:,0], 'IM':groundtruth.IM, 'mask':mask, 'PSFu':PSFu, 'PSFk':PSFk})
 
 
         # compute gradients
@@ -205,6 +219,8 @@ def reconstruct_cpu(Y,Sk,Fk,Su,Fu,Nframes,nIter,eta,mu,adagrad,groundtruth=None,
         dSu = dSu/len(tidx2)
         dSk = dSk/len(tidx2)
         print 'Done. ', time.time() - tic, 'seconds'
+        print 'dSu norm: ', sp.linalg.norm(dSu)
+        print 'dSk norm: ', sp.linalg.norm(dSk)
 
         # update learning rate (Adagrad)
         if adagrad == True:
@@ -262,9 +278,16 @@ def reconstruct_cpu(Y,Sk,Fk,Su,Fu,Nframes,nIter,eta,mu,adagrad,groundtruth=None,
         Fk[:,tidx2] = np.maximum(0, Fk[:,tidx2])
         Su = np.maximum(0, Su)
         Sk = np.maximum(0, Sk)
-        Su = Su * 1 / np.sum(np.finfo(np.float).eps+Su, 0)
-        Sk = Sk * 1 / np.sum(np.finfo(np.float).eps+Sk, 0)
-
+        scaleSu = np.sum(np.finfo(np.float).eps+Su, 0)
+        scaleSk = np.sum(np.finfo(np.float).eps+Sk, 0)
+        print 'ScaleSu shape: ', scaleSu.shape
+        print 'ScaleSk shape: ', scaleSk.shape
+        Su = Su * (1/scaleSu)
+        Sk = Sk * (1/scaleSk)
+        Fu = Fu * scaleSu[:,np.newaxis]
+        Fk = Fk * scaleSk[:,np.newaxis]
+        print 'scaleSu: ', np.mean(scaleSu)
+        print 'scaleSk: ', np.mean(scaleSk)
         print "\n"
 
     return (loss, Sk, Fk, Su, Fu)
@@ -331,19 +354,23 @@ def prepexpt(fn = '../Problem_nonoise_v1.mat'):
 
     #Nsk = groundtruth.seg.shape[1]
     #Sk = 1e-3 * sp.rand(Nvoxk, Nsk)  # +Sk0
-    Sk = D['S_init'].toarray()  #convert sparse to full
+    Sk = D['Sk'].toarray()  #convert sparse to full
     Sk = Sk[mask,:]
+    Fk = D['Fk']
+
+    Su = D['Su']
+    Fu = D['Fu']
 
     Nsk = Sk.shape[1]
-    Nsu = groundtruth.unsuspectedPos.shape[1] #this can be varied
+    Nsu = Su.shape[1]
 
     print '#Sk:', Nsk, '#Su:', Nsu
 
-    Fk = D['F_init']
+    #Fk = D['F_init']
     #Fk = 5e-1 * sp.rand(Nsk, T)  # +Fk0
 
-    Su = 1e-3 * sp.rand(Nvox, Nsu)
-    Fu = 5e-2 * sp.rand(Nsu, T)
+    #Su = 1e-3 * sp.rand(Nvox, Nsu)
+    #Fu = 5e-2 * sp.rand(Nsu, T)
 
     print 'Done initialization!', time.time() - tic, 'seconds'
 
