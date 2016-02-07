@@ -1,9 +1,13 @@
-function prepareProblem
+function prepareProblem(doInitialization)
+
+if ~nargin
+    doInitialization = false;
+end
 
 opts = default_opts;
 
 basedir = fileparts(which('prepareProblem'));
-problemname = 'Problem_nonoise_v1';
+problemname = 'Problem_nonoise_v2';
 
 %Begin Simulation
 disp('Generating ground truth.')
@@ -35,8 +39,30 @@ disp('Segmenting image for reconstruction')
 S_init = segment_2D(obs.IM, opts);
 
 S_bg = obs.IM; S_bg(S_init.bw) = 0;
-S_init = [S_init.seg S_bg(:)];
-F_init = reconstruct_lightweight(obs,opts, S_init); %this takes ~3s/frame
+
+NSu = 5;
+Sk = S_init.seg./repmat(sum(S_init.seg,1), size(S_init.seg,1),1);
+Su = rand(size(Sk,1), NSu);
+Su(:,1) = S_bg(:);
+Su = Su./repmat(sum(Su,1), size(Su,1),1);
+
+if doInitialization
+    S = [Sk Su];
+    F_init = reconstruct_lightweight(obs,opts, S); %this takes ~3s/frame
+    Fk = F_init(1:size(Sk,2),:);
+    Fu = F_init(1+end-size(Su,2):end);
+else
+    Fk = [];
+    Fu = [];
+end
+
+
+masks = Sk>eps;
+Sk_masked = cell(size(Sk, 2),1);
+for ix = 1:length(Sk_masked)
+    Sk_masked{ix} = Sk(masks(:,ix),ix);
+end
+
 
 
 %Make this a format that python can read
@@ -55,4 +81,4 @@ ground_truth = rmfield(ground_truth, 'unsuspected');
 %     keyboard;
 % end
 
-save([basedir filesep problemname '.mat'], 'ground_truth', 'opts', 'obs', 'S_init', 'F_init');
+save([basedir filesep problemname '.mat'], 'ground_truth', 'opts', 'obs', 'Sk_masked', 'Fk', 'Su', 'Fu', 'masks');
