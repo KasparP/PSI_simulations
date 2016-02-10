@@ -58,3 +58,4 @@ Temporary Items
 *.pyc
 Python/Problem_nonoise_v1.mat
 *.mat
+Python/SLAPMi/testout.txt
