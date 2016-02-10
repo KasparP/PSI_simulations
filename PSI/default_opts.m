@@ -10,7 +10,7 @@ opts.samplerate = 4000; %sample rate in projections (i.e. laser pulses)/millisec
 
 opts.sim.dur = 1000; %duration of simulation, milliseconds
 opts.sim.amp = 8; %amplitude of signals, df/F0
-opts.sim.dynamics = 'random';   %'smooth' for motion and activity varying slowly in time, or 'random' for a random bag of frames with the same statistics as 'smooth'
+opts.sim.dynamics = 'smooth';   %'smooth' for motion and activity varying slowly in time, or 'random' for a random bag of frames with the same statistics as 'smooth'
 opts.sim.unsuspected.N = 3; % an integer >=0, adds this number of 'unsuspected' signals to the image in regions outside the morphological mask, to simulate failures in segmentation due to weak morphological signal
 opts.sim.unsuspected.amp = 0.2;
 

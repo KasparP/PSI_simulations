@@ -7,7 +7,28 @@ end
 opts = default_opts;
 
 basedir = fileparts(which('prepareProblem'));
-problemname = 'Problem_nonoise_v2';
+
+for problemNum = 1:4
+switch problemNum
+    case 1
+        problemname = 'Problem_nonoise_1Kframes';
+        opts.nonoise = true;
+        opts.sim.dur = 1000
+    case 2
+        problemname = 'Problem_nonoise_10Kframes';
+        opts.nonoise = true;
+        opts.sim.dur = 10000
+    case 3
+        problemname = 'Problem_noise_1Kframes';
+        opts.nonoise = false;
+        opts.sim.dur = 1000
+    case 4
+        problemname = 'Problem_noise_10Kframes';
+        opts.nonoise = false;
+        opts.sim.dur = 10000
+end
+opts.nframes = opts.sim.dur*opts.framerate;
+
 
 %Begin Simulation
 disp('Generating ground truth.')
@@ -24,7 +45,7 @@ toc
 
 disp('Simulating imaging.')
 tic
-[obs, M] = simulate_imaging(ground_truth, opts);
+[obs] = simulate_imaging(ground_truth, opts);
 toc
 
 
@@ -58,10 +79,6 @@ end
 
 
 masks = Sk>eps;
-Sk_masked = cell(size(Sk, 2),1);
-for ix = 1:length(Sk_masked)
-    Sk_masked{ix} = Sk(masks(:,ix),ix);
-end
 
 
 
@@ -81,4 +98,5 @@ ground_truth = rmfield(ground_truth, 'unsuspected');
 %     keyboard;
 % end
 
-save([basedir filesep problemname '.mat'], 'ground_truth', 'opts', 'obs', 'Sk_masked', 'Fk', 'Su', 'Fu', 'masks');
+save([basedir filesep problemname '.mat'], 'ground_truth', 'opts', 'obs', 'Sk', 'Fk', 'Su', 'Fu', 'masks');
+end

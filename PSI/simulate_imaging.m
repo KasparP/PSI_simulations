@@ -17,7 +17,9 @@ OBS.IM = GT.IM; %for now, we assume the morphological image was a faithful repre
                     
 OBS.data_in = zeros(size(opts.P,2), opts.nframes); %extize
 
-GT_movie = zeros([size(GT.IM) opts.nframes]);
+if nargout>1
+    GT_movie = zeros([size(GT.IM) opts.nframes]);
+end
 
 for frame = 1:opts.nframes
     disp(['     Frame ' int2str(frame)])
@@ -29,7 +31,9 @@ for frame = 1:opts.nframes
     %add unsuspected activity
     thisframe = thisframe + reshape(GT.unsuspected.Su*(1+GT.unsuspected.Fu(:,frame)), size(GT.IM));
     
-    GT_movie(:,:,frame) = thisframe; %the ground truth brightness of the sample, without sample motion
+    if nargout>1
+        GT_movie(:,:,frame) = thisframe; %the ground truth brightness of the sample, without sample motion
+    end
 
     
     %shift the frame according to the per-frame motion

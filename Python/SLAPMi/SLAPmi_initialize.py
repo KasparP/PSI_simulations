@@ -21,17 +21,27 @@ def SLAPmi_initialize_spark(fullpath):
 
     Sk = D['Sk']
     Su = D['Su']
-
+    masks = D['masks']
     #S = Sk
     #S = np.concatenate((Sk,Su), axis=1)
 
     def P (frame):
         return P0
 
+
     def solveOneFrame(frameDataIn):  #framedata has structure [framenumber, y[:,framenumber]]
         Pt = P(frameDataIn[0])
-        PS = np.concatenate((Pt*Sk_bc.value.toarray(), Pt*Su_bc.value), axis=1)
+        #PSk = np.zeros((Pt.shape[0], Sk.shape[0]))
+        #for Sk_ix in range(len(Sk)):
+        #    PSk[:, Sk_ix] = Pt[:,masks[:,Sk_ix].toarray()[:,0]].dot(Sk[Sk_ix])
+        #code.interact(local=locals())
+        PSk = Pt.dot(Sk_bc.value).toarray()
+        PSu = Pt.dot(Su_bc.value)
+        PS = np.concatenate((PSk, PSu), axis=1)
         F = optimize.nnls(PS,frameDataIn[1])
+
+        #code.interact(local=locals())
+
         return F[0]
 
 
@@ -45,25 +55,19 @@ def SLAPmi_initialize_spark(fullpath):
 
     frameData = [(i, Y[:,i]) for i in range(Y.shape[1])]
 
-    #frameData = [(i, Y[:,i]) for i in range(5)]
-
     F_solved = np.array(sc.parallelize(frameData,len(frameData)).map(solveOneFrame).collect())
-    #F_solved = sc.parallelize(frameData).map(lambda x: solveOneFrame(x)).collect()
 
     #
     print 'F_solved', F_solved.shape
     print 'Sk', Sk.shape
     print 'Su', Su.shape
 
-    Fk = F_solved[:, 0:Sk.shape[1]]
-    Fu = F_solved[:, Sk.shape[1]:(Sk.shape[1]+Su.shape[1])]
+    Fk = F_solved[:, 0:Sk.shape[1]].T
+    Fu = F_solved[:, Sk.shape[1]:(Sk.shape[1]+Su.shape[1])].T
 
-    #Fk = F_solved[:, range(Sk.shape[0])]
-    #Fu = F_solved[:, Sk.shape[0]+range(Su.shape[0])]
-
-    return Sk,Su,Fk,Fu, obs, opts, D['ground_truth']
+    return Sk,Su,Fk,Fu, obs, opts, masks, D['ground_truth']
 
 if __name__ == '__main__':
     fullpath = sys.argv[1]
-    [Sk,Su,Fk,Fu, obs, opts, GT] = SLAPmi_initialize_spark(fullpath)
-    io.savemat(fullpath[:-4] + '_init.mat',{'obs': obs, 'opts':opts, 'GT': GT, 'Sk':Sk, 'Su':Su,'Fk':Fk,'Fu':Fu})
+    [Sk,Su,Fk,Fu, obs, opts, masks, GT] = SLAPmi_initialize_spark(fullpath)
+    io.savemat(fullpath[:-4] + '_init.mat',{'obs': obs, 'opts':opts, 'GT': GT, 'Sk':Sk, 'Su':Su,'Fk':Fk,'Fu':Fu, 'masks':masks})

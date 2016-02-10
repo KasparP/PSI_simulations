@@ -8,26 +8,20 @@ import random
 import matplotlib.pyplot as plt
 import progressbar
 import os
+import code
 # import theano
 # import theano.tensor as TT
 
 # @jit
 
-#TO DO:
-#Make S-updates 'local'; don't add pixels far from existing ones
-    #this can be done by only considering nearby pixels in the first place, speeding up updates
-#Smoothness in F by adding penalty for distance from NND(F)
-    #need to implement fast NND in python
 
 def Pu(it):
     return P0  # function to motioncorrect P at a given frame
-
 
 def Pk(it):
     return P0[:, mask]
 
 # IS THIS THE CORRECT SIZE TO INITIALIZE THESE?
-
 
 #Function definitions
 def lossfun():
@@ -117,25 +111,38 @@ def reconstruct_cpu(Y,Sk,Fk,Su,Fu,Nframes,nIter,eta,mu,adagrad,groundtruth=None,
     loss_gt = np.zeros((nIter))
     loss = np.zeros((nIter))
     dSu = np.empty(Su.shape)
-    dSk = np.empty(Sk.shape)
+
+    dSk = sp.sparse.csc_matrix(Sk.shape) #np.empty(Sk.shape)
+
     dFu = np.empty(Fu.shape)
     dFk = np.empty(Fk.shape)
-    deltaSu = np.zeros(Su.shape)
-    deltaSk = np.zeros(Sk.shape)
+    deltaSu = np.empty(Su.shape)
+
+    deltaSk = sp.sparse.csc_matrix(Sk.shape) #np.zeros(Sk.shape)
+
     deltaFu = np.zeros(Fu.shape)
     deltaFk = np.zeros(Fk.shape)
-    etaSu = np.empty(Su.shape)
-    etaSk = np.empty(Sk.shape)
+    etaSu = np.empty(Su.shape) #np.empty(Su.shape)
+
+    etaSk = sp.sparse.csc_matrix(Sk.shape) #np.empty(Sk.shape)
+
     etaFu = np.empty(Fu.shape)
     etaFk = np.empty(Fk.shape)
-    etaSu2 = np.zeros(Su.shape)
-    etaSk2 = np.zeros(Sk.shape)
+    etaSu2 = np.empty(Su.shape)
+
+    etaSk2 = sp.sparse.csc_matrix(Sk.shape)
+
     etaFu2 = np.zeros(Fu.shape)
     etaFk2 = np.zeros(Fk.shape)
     Xhat = np.zeros(Y.shape)
     PSFu = np.zeros(Y.shape)
     PSFk = np.zeros(Y.shape)
     E = np.zeros(Y.shape)
+
+
+    Sk_nnz = Sk.nonzero()
+    M = masks
+    mask_ixs = [masks[:,x].nonzero()[0] for x in range(Sk.shape[1])]
 
     Su_in = Su
     Sk_in = Sk
@@ -159,22 +166,8 @@ def reconstruct_cpu(Y,Sk,Fk,Su,Fu,Nframes,nIter,eta,mu,adagrad,groundtruth=None,
         # b=0;
         #bar = progressbar.ProgressBar()
         for it in tidx: #bar(tidx):
-            if it == tidx[0]:
-                # print type(Fk)
-                # print type(Fu)
-                # print type(Sk)
-                # print type(Su)
-                # print '-----'
-                # print Pk(it).shape
-                # print Sk.shape
-                # print Pk(it).shape
-                # print Sk.dot(Fk[:, it]).shape
-                print Pk(it).dot(np.reshape(Sk.dot(Fk[:, [it]]), (-1, 1))).shape
-                # print np.ravel(Pk(it).dot(np.reshape(Sk.dot(Fk[:, it]), (-1, 1)))).shape
-                # print PSFk[:,it].shape
-                # print it
             PSFu[:, it] = Pu(it).dot(Su.dot(Fu[:, it]))
-            PSFk[:, it] = Pk(it).dot(Sk.dot(Fk[:, it]))
+            PSFk[:, it] = Pu(it).dot(Sk.dot(Fk[:, it]))
             #PSFk[:, [it]] = np.reshape(Pk(it).dot(np.reshape(Sk.dot(Fk[:, [it]]), (-1, 1))), (-1,1))  #necessary because Sk is sparse matrix, not array. Could avoid ravel by converting all arrays to matrices?
 
         Xhat[:, tidx] = PSFu[:, tidx] + PSFk[:, tidx]
@@ -191,7 +184,7 @@ def reconstruct_cpu(Y,Sk,Fk,Su,Fu,Nframes,nIter,eta,mu,adagrad,groundtruth=None,
         if groundtruth is not None:
             maxind = sp.minimum(10, len(tidx))
             recon = Su.dot(Fu[:,tidx[0:maxind-1]])  #kinda slow
-            recon[mask,:] += Sk.dot(Fk[:,tidx[0:maxind-1]])
+            recon += Sk.dot(Fk[:,tidx[0:maxind-1]])
             print 'Reconstructed image norm: ', sp.linalg.norm(recon)
             recon_gt = ndarray.reshape(groundtruth.IM, (-1,1)) + groundtruth.Su.dot(groundtruth.Fu[:,tidx[0:maxind-1]]) + groundtruth.seg.dot(groundtruth.activity[:,tidx[0:maxind-1]]) #really slow
             print 'Ground truth image norm: ', sp.linalg.norm(recon_gt)
@@ -199,6 +192,7 @@ def reconstruct_cpu(Y,Sk,Fk,Su,Fu,Nframes,nIter,eta,mu,adagrad,groundtruth=None,
 
 
         if (ITER % 100) == 0:
+            print 'Saving data...'
             if groundtruth is None:
                 io.savemat(out_fn,{'loss':loss,'Y':Y,'Xhat':Xhat,'Sk':Sk,'Fk':Fk,'Su':Su,'Fu':Fu, 'mask':mask})
             else:
@@ -208,31 +202,47 @@ def reconstruct_cpu(Y,Sk,Fk,Su,Fu,Nframes,nIter,eta,mu,adagrad,groundtruth=None,
         # compute gradients
         print ('Computing gradients... ')
         tic = time.time()
-        dSu.fill(0.0)
-        dSk.fill(0.0)
+        dSu = 0*dSu
+        dSk = 0*dSk
         #bar = progressbar.ProgressBar()
         for it in tidx2: #bar(tidx2):
-            dSu = dSu + np.outer((Pu(it).T).dot(E[:, it]),Fu[:,it])
-            dSk = dSk + np.outer((Pk(it).T).dot(E[:, it]),Fk[:,it])
-            dFu[:, it] = ((Pu(it).dot(Su)).T).dot(E[:, it])
-            dFk[:, it] = ((Pk(it).dot(Sk)).T).dot(E[:, it])
+            Pt = Pu(it)
+            dSu = dSu + np.outer(Pt.T.dot(E[:, it]),Fu[:,it])
+
+            PE = Pt.T.dot(E[:, it])  #projected error for this iter
+            #code.interact(local = locals())
+
+            dSk_tmp = sp.sparse.lil_matrix(Sk.shape)
+            for S_ix in range(Sk.shape[1]):
+                #A = (Pt.T.dot(E[:, it])[mask_ixs[S_ix]])*Fk[S_ix,it]
+                #B = dSk_tmp
+                #M = mask_ixs
+                #code.interact(local = locals())
+                dSk_tmp[mask_ixs[S_ix], S_ix] = ((PE[mask_ixs[S_ix]])*Fk[S_ix,it])[:,np.newaxis]
+            dSk = dSk+dSk_tmp
+
+            #dSk = dSk + np.outer((Pu(it).T).dot(E[:, it]),Fk[:,it])
+            dFu[:, it] = ((Pt.dot(Su)).T).dot(E[:, it])
+            dFk[:, it] = ((Pt.dot(Sk)).T).dot(E[:, it])
         dSu = dSu/len(tidx2)
         dSk = dSk/len(tidx2)
         print 'Done. ', time.time() - tic, 'seconds'
         print 'dSu norm: ', sp.linalg.norm(dSu)
-        print 'dSk norm: ', sp.linalg.norm(dSk)
+
+        #print 'dSk norm: ', sp.linalg.norm(dSk)
 
         # update learning rate (Adagrad)
         if adagrad == True:
             etaSu2 = etaSu2 + np.square(dSu)
-            etaSk2 = etaSk2 + np.square(dSk)
+            etaSk2 = etaSk2 + dSk.multiply(dSk)
             etaFu2 = etaFu2 + np.square(np.mean(np.fabs(dFu[:,tidx2])))
             etaFk2 = etaFk2 + np.square(np.mean(np.fabs(dFk[:,tidx2])))
             # etaFu2[:,tidx2] = etaFu2[:,tidx2] + np.square(dFu[:,tidx2])
             # etaFk2[:,tidx2] = etaFk2[:,tidx2] + np.square(dFk[:,tidx2])
 
             etaSu = 1./(5e4+np.sqrt(etaSu2))
-            etaSk = 1./(5e4+np.sqrt(etaSk2))
+            #code.interact(local = locals())
+            etaSk[Sk_nnz] = 1./(5e4+np.sqrt(etaSk2[Sk_nnz])) #need to keep this matrix sparse. This is slow.
             etaFu = 1./(5e4+np.sqrt(etaFu2))
             etaFk = 1./(5e4+np.sqrt(etaFk2))
             # etaFu[:,tidx2] = 1./(1e4+np.sqrt(etaFu2[:,tidx2]))
@@ -240,7 +250,7 @@ def reconstruct_cpu(Y,Sk,Fk,Su,Fu,Nframes,nIter,eta,mu,adagrad,groundtruth=None,
 
             # compute updates, with momentum
             deltaSu = mu*deltaSu + eta*etaSu*dSu
-            deltaSk = mu*deltaSk + eta*etaSk*dSk
+            deltaSk = mu*deltaSk + eta*etaSk.multiply(dSk)
             deltaFu[:,tidx2] = mu*deltaFu[:,tidx2] + eta*etaFu[:,tidx2]*dFu[:,tidx2]
             deltaFk[:,tidx2] = mu*deltaFk[:,tidx2] + eta*etaFk[:,tidx2]*dFk[:,tidx2]
 
@@ -252,18 +262,22 @@ def reconstruct_cpu(Y,Sk,Fk,Su,Fu,Nframes,nIter,eta,mu,adagrad,groundtruth=None,
 
             # compute updates
             deltaSu = eta*etaSu*dSu
-            deltaSk = eta*etaSk*dSk
+            deltaSk = eta*etaSk.multiply(dSk)
             deltaFu[:,tidx2] = eta*etaFu*dFu[:,tidx2]
             deltaFk[:,tidx2] = eta*etaFk*dFk[:,tidx2]
 
         print 'mean (stepsize,eta) Su = (%f , %f)' % (np.mean(np.fabs(deltaSu.ravel())),np.mean(etaSu))
-        print 'mean (stepsize,eta) Sk = (%f , %f)' % (np.mean(np.fabs(deltaSk.ravel())),np.mean(etaSk))
+        #print 'mean (stepsize,eta) Sk = (%f , %f)' % (np.mean(np.fabs(deltaSk.ravel())),np.mean(etaSk))
         print 'mean (stepsize,eta) Fu[:,it] = (%f , %f)' % (np.mean(np.fabs(deltaFu[:,it].ravel())),np.mean(etaFu))
         print 'mean (stepsize,eta) Fk[:,it] = (%f , %f)' % (np.mean(np.fabs(deltaFk[:,it].ravel())),np.mean(etaFk))
 
         # clip gradients if they are too big
         np.clip(deltaSu,-1e3,1e3,out=deltaSu)
-        np.clip(deltaSk,-1e3,1e3,out=deltaSk)
+
+        deltaSk[deltaSk>1e3] = 1e3
+        deltaSk[deltaSk<-1e3] = -1e3
+
+        #np.clip(deltaSk,-1e3,1e3,out=deltaSk)
         np.clip(deltaFu,-1e3,1e3,out=deltaFu)
         np.clip(deltaFk,-1e3,1e3,out=deltaFk)
 
@@ -277,17 +291,17 @@ def reconstruct_cpu(Y,Sk,Fk,Su,Fu,Nframes,nIter,eta,mu,adagrad,groundtruth=None,
         Fu[:,tidx2] = np.maximum(0, Fu[:,tidx2])
         Fk[:,tidx2] = np.maximum(0, Fk[:,tidx2])
         Su = np.maximum(0, Su)
-        Sk = np.maximum(0, Sk)
+
+        Sk[Sk<0] = 0
+
         scaleSu = np.sum(np.finfo(np.float).eps+Su, 0)
-        scaleSk = np.sum(np.finfo(np.float).eps+Sk, 0)
-        print 'ScaleSu shape: ', scaleSu.shape
-        print 'ScaleSk shape: ', scaleSk.shape
-        Su = Su * (1/scaleSu)
-        Sk = Sk * (1/scaleSk)
+        scaleSk = np.asarray(Sk.sum(0)) + np.finfo(np.float).eps
+
+        Su = Su * (1/scaleSu[np.newaxis,:])
+        Sk[Sk_nnz] = Sk.multiply(1/scaleSk)[Sk_nnz]  #SLOW!!!!
         Fu = Fu * scaleSu[:,np.newaxis]
-        Fk = Fk * scaleSk[:,np.newaxis]
-        print 'scaleSu: ', np.mean(scaleSu)
-        print 'scaleSk: ', np.mean(scaleSk)
+        Fk = np.multiply(scaleSk.T, Fk)
+
         print "\n"
 
     return (loss, Sk, Fk, Su, Fu)
@@ -309,22 +323,15 @@ def reconstruct_theano(Y,Sk,Fk,Su,Fu):
     return (loss, Sk, Fk, Su, Fu)
 
 
-def prepexpt(fn = '../Problem_nonoise_v1.mat'):
+def prepexpt(fn = '../Problem_nonoise_v2_init.mat'):
     global P0
-    global mask
+    global mask   #the inside of the neuron
+    global masks  #one mask for each Sk
+
     # fn = '../PSI/Problem_nonoise_v1.mat'
     # fn = '../../PSI/PRECOMP_nonoise_py.mat'
 
-    # def initialize(fn):
     D = io.loadmat(fn, struct_as_record=False, squeeze_me=True)
-    # print type(D['ground_truth']['seg'])
-    # reconstruct_imaging_ADMM(D['obs'],D['opts'],1000,40,D['ground_truth'])
-    obs = D['obs']
-    opts = D['opts']
-    groundtruth = D['ground_truth']
-
-    # NOTES:
-    # indexing is currently 1-based for many things, this needs to be fixed!
 
     rho = 1e-0
     lambdaFk_nuc = 1e-10
@@ -332,46 +339,67 @@ def prepexpt(fn = '../Problem_nonoise_v1.mat'):
     lambdaFk_TF = 1e-10
     lambdaFu_TF = 1e-10
 
-    bw = groundtruth.bw
+    obs = D['obs']
+    opts = D['opts']
+    GT = D['GT']
+    Sk = D['Sk']
+    Fk = D['Fk']
+    Su = D['Su']
+    Fu = D['Fu']
+    masks = D['masks']
 
+    bw = GT.bw
     mask = ndarray.flatten(bw) > 0
     Nvoxk = sum(mask)
 
-    print(opts.P.shape)
-    obs.data_in = opts.P[mask, :].T.dot(groundtruth.seg[mask, :]).dot(groundtruth.activity)
 
     [Nvox, Nproj] = opts.P.shape
     [Nproj, T] = obs.data_in.shape
 
-    Sk0 = groundtruth.seg[mask, :]
-    Fk0 = groundtruth.activity[:, :T]
+    #Sk0 = GT.seg[mask, :]
+    #Fk0 = GT.activity[:, :T]
 
     print('Initializing variables...')
-    tic = time.time()
 
     Y = obs.data_in
     P0 = opts.P.T  # transpose
 
     #Nsk = groundtruth.seg.shape[1]
     #Sk = 1e-3 * sp.rand(Nvoxk, Nsk)  # +Sk0
-    Sk = D['Sk'].toarray()  #convert sparse to full
-    Sk = Sk[mask,:]
-    Fk = D['Fk']
 
-    Su = D['Su']
-    Fu = D['Fu']
+
 
     Nsk = Sk.shape[1]
     Nsu = Su.shape[1]
 
+
     print '#Sk:', Nsk, '#Su:', Nsu
+    print 'Done initialization!'
 
-    #Fk = D['F_init']
-    #Fk = 5e-1 * sp.rand(Nsk, T)  # +Fk0
+    return (Y,Sk,Fk,Su,Fu,GT)
 
-    #Su = 1e-3 * sp.rand(Nvox, Nsu)
-    #Fu = 5e-2 * sp.rand(Nsu, T)
 
-    print 'Done initialization!', time.time() - tic, 'seconds'
 
-    return (Y,Sk,Fk,Su,Fu,groundtruth)
+def solveFgivenS(Y, Sk, Su, Fk, Fu, masks):
+    from scipy import optimize
+    def solveOneFrame(frameDataIn):  #framedata has structure [framenumber, y[:,framenumber]]
+        Pt = Pu(frameDataIn[0])
+        PSk = np.zeros((Pt.shape[0], len(Sk)))
+        for Sk_ix in range(len(Sk)):
+            PSk[:, Sk_ix] = Pt[:,masks[:,Sk_ix].toarray()[:,0]].dot(Sk[Sk_ix])
+        PSu = Pt.dot(Su)
+        PS = np.concatenate((PSk, PSu), axis=1)
+        F = optimize.nnls(PS,frameDataIn[1])
+        return F[0]
+    #code.interact(local=locals())
+
+    Sk_bc = sc.broadcast(Sk)
+    Su_bc = sc.broadcast(Su)
+
+    frameData = [(i, Y[:,i]) for i in range(Y.shape[1])]
+
+    F_solved = np.array(sc.parallelize(frameData,len(frameData)).map(solveOneFrame).collect())
+
+    Fk = F_solved[:, 0:len(Sk)]
+    Fu = F_solved[:, len(Sk):len(Sk+Su.shape[1])]
+    return Fk,Fu
