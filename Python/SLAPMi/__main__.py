@@ -182,8 +182,8 @@ def reconstruct_cpu(Y,Sk,Fk,Su,Fu,Nframes,nIter,eta,mu,adagrad,groundtruth=None,
             recon = Su.dot(Fu[:,tidx[0:maxind]])  #kinda slow
             recon += Sk.dot(Fk[:,tidx[0:maxind]])
             recon_gt = ndarray.reshape(groundtruth.IM, (-1,1), order='F') + groundtruth.seg.dot(groundtruth.activity[:,tidx[0:maxind]]) #really slow
-            recon_K = []
-            recon_U = []
+            recon_K = np.zeros(shape=(0, 1))
+            recon_U = np.zeros(shape=(0, 1))
             if groundtruth.Su.size>1:
                 recon_K = recon_gt
                 recon_U = groundtruth.Su.dot(groundtruth.Fu[:,tidx[0:maxind]])
