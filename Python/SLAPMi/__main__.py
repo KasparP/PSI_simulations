@@ -8,7 +8,7 @@ import random
 import matplotlib.pyplot as plt
 import progressbar
 import os
-import code
+#import code
 # import theano
 # import theano.tensor as TT
 
@@ -96,10 +96,6 @@ def lossfun_aug():
     l_aug = l_aug / Y[:, tidx2].size
     return l_aug
 
-def lossfun_gt():  # WE NEED A PROPER GT LOSS FUNCTION! Previous one was sensitive to swapping of Sk's
-    l_gt = 10
-    return l_gt
-
 
 def reconstruct_cpu(Y,Sk,Fk,Su,Fu,Nframes,nIter,eta,mu,adagrad,groundtruth=None, out_fn = 'output.mat'):
     print 'Working in: ', os.getcwd()
@@ -183,10 +179,23 @@ def reconstruct_cpu(Y,Sk,Fk,Su,Fu,Nframes,nIter,eta,mu,adagrad,groundtruth=None,
 
         if groundtruth is not None:
             maxind = sp.minimum(10, len(tidx))
-            recon = Su.dot(Fu[:,tidx[0:maxind-1]])  #kinda slow
-            recon += Sk.dot(Fk[:,tidx[0:maxind-1]])
+            recon = Su.dot(Fu[:,tidx[0:maxind]])  #kinda slow
+            recon += Sk.dot(Fk[:,tidx[0:maxind]])
+            recon_gt = ndarray.reshape(groundtruth.IM, (-1,1), order='F') + groundtruth.seg.dot(groundtruth.activity[:,tidx[0:maxind]]) #really slow
+            recon_K = []
+            recon_U = []
+            if groundtruth.Su.size>1:
+                recon_K = recon_gt
+                recon_U = groundtruth.Su.dot(groundtruth.Fu[:,tidx[0:maxind]])
+                recon_gt += recon_U
+
+            for ix in range(maxind):
+                P = Pu(tidx[ix])
+                discard, notP = np.logical_not(P.sum(0)).nonzero()
+                recon[notP,ix] = 0
+                recon_gt[notP,ix] = 0
+
             print 'Reconstructed image norm: ', sp.linalg.norm(recon)
-            recon_gt = ndarray.reshape(groundtruth.IM, (-1,1)) + groundtruth.Su.dot(groundtruth.Fu[:,tidx[0:maxind-1]]) + groundtruth.seg.dot(groundtruth.activity[:,tidx[0:maxind-1]]) #really slow
             print 'Ground truth image norm: ', sp.linalg.norm(recon_gt)
             loss_gt[ITER] = sp.linalg.norm(recon - recon_gt)/np.sqrt(maxind)
 
@@ -196,7 +205,7 @@ def reconstruct_cpu(Y,Sk,Fk,Su,Fu,Nframes,nIter,eta,mu,adagrad,groundtruth=None,
             if groundtruth is None:
                 io.savemat(out_fn,{'loss':loss,'Y':Y,'Xhat':Xhat,'Sk':Sk,'Fk':Fk,'Su':Su,'Fu':Fu, 'mask':mask})
             else:
-                io.savemat(out_fn,{'loss':loss,'loss_gt':loss_gt, 'Y':Y,'Xhat':Xhat,'Sk':Sk,'Fk':Fk,'Su':Su,'Fu':Fu, 'recon':recon[:,0], 'recon_gt':recon_gt[:,0], 'IM':groundtruth.IM, 'mask':mask, 'PSFu':PSFu, 'PSFk':PSFk})
+                io.savemat(out_fn,{'loss':loss,'loss_gt':loss_gt, 'Y':Y,'Xhat':Xhat,'Sk':Sk,'Fk':Fk,'Su':Su,'Fu':Fu, 'recon':recon[:,0], 'recon_gt':recon_gt[:,0], 'recon_K':recon_K[:,0], 'recon_U':recon_U[:,0], 'IM':groundtruth.IM, 'mask':mask, 'PSFu':PSFu, 'PSFk':PSFk})
 
 
         # compute gradients
@@ -346,6 +355,15 @@ def prepexpt(fn = '../Problem_nonoise_v2_init.mat'):
     Fk = D['Fk']
     Su = D['Su']
     Fu = D['Fu']
+
+    if len(Su.shape)<2:
+        Su = Su[:,None]
+        Fu = Fu[None,:]
+
+    if len(GT.Su.shape)<2:
+        GT.Su = GT.Su[:,None]
+        GT.Fu = GT.Fu[None,:]
+
     masks = D['masks']
 
     bw = GT.bw

@@ -21,6 +21,9 @@ def SLAPmi_initialize_spark(fullpath):
 
     Sk = D['Sk']
     Su = D['Su']
+    if len(Su.shape)<2:
+        Su = Su[:,None]
+
     masks = D['masks']
     #S = Sk
     #S = np.concatenate((Sk,Su), axis=1)

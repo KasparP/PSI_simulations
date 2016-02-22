@@ -1,0 +1,12 @@
+
+
+Spark job submitted with 7 nodes
+
+
+..
+
+job id:             37871197
+spark master:       spark://h07u19.int.janelia.org:7077
+
+
+Write failed: Broken pipe

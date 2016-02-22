@@ -106,6 +106,7 @@ S.seg(bw,:) = S.seg(bw,:)./repmat(nansum(S.seg(bw,:),2), [1 length(i1)]);
 
 %weight the segmentation by the original image intensity
 S.seg(bw,:) = S.seg(bw,:).*repmat(image(bw),[1 length(i1)]);
+S.seg(~bw,:) = 0;
 
 %output the mask
 S.bw = bw;

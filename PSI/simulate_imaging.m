@@ -29,7 +29,9 @@ for frame = 1:opts.nframes
     thisframe(GT.seg.bw) = F; %add fluorescence signal
 
     %add unsuspected activity
-    thisframe = thisframe + reshape(GT.unsuspected.Su*(1+GT.unsuspected.Fu(:,frame)), size(GT.IM));
+    if isfield(GT, 'unsuspected')
+        thisframe = thisframe + reshape(GT.unsuspected.Su*(1+GT.unsuspected.Fu(:,frame)), size(GT.IM));
+    end
     
     if nargout>1
         GT_movie(:,:,frame) = thisframe; %the ground truth brightness of the sample, without sample motion
@@ -46,10 +48,10 @@ for frame = 1:opts.nframes
     %#photons impinging on PMT at each time
     photons_sampled = poissrnd(signal_photons+dark_photons);
     if opts.debug.nonoise
-        photons_sampled = signal_photons+dark_photons;
+        OBS.data_in(:,frame) = signal_photons;
+    else   
+        %data collected is:            photons    +                   noise due to pulseheight variation                     +            electronics noise                   
+        OBS.data_in(:,frame) =    photons_sampled + sqrt(photons_sampled).*randn(size(photons_sampled)).*opts.scope.PMTsigma + opts.scope.readnoise*randn(size(photons_sampled));
     end
-    
-    %data collected is:            photons    +                   noise due to pulseheight variation                     +            electronics noise                   
-    OBS.data_in(:,frame) =    photons_sampled + sqrt(photons_sampled).*randn(size(photons_sampled)).*opts.scope.PMTsigma + opts.scope.readnoise*randn(size(photons_sampled));
 end
 end

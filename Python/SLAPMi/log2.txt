@@ -1,0 +1,12 @@
+
+
+Spark job submitted with 7 nodes
+
+
+.
+
+job id:             38702994
+spark master:       spark://h06u01.int.janelia.org:7077
+
+
+Killed by signal 15.

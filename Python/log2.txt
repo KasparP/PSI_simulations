@@ -1,0 +1,17 @@
+
+
+Spark job submitted with 7 nodes
+
+
+...
+
+job id:             37871256
+spark master:       spark://h08u28.int.janelia.org:7077
+
+
+/usr/local/python-2.7.6/bin/python: can't open file '/tier2/turaga/podgorskik/PSI_simulations/Python/SLAPmi_initialize.py': [Errno 2] No such file or directory
+
+
+Spark jobs successfully deleted
+
+

@@ -1,0 +1,12 @@
+
+
+Spark job submitted with 7 nodes
+
+
+..
+
+job id:             38702999
+spark master:       spark://h08u30.int.janelia.org:7077
+
+
+[Stage 0:>                                                      (0 + 0) / 20000][Stage 0:>                                                     (0 + 96) / 20000][Stage 0:>                                                    (16 + 96) / 20000][Stage 0:>                                                    (48 + 96) / 20000][Stage 0:>                                                    (64 + 96) / 20000][Stage 0:>                                                    (71 + 96) / 20000][Stage 0:>                                                    (92 + 96) / 20000][Stage 0:>                                                   (136 + 96) / 20000][Stage 0:>                                                   (157 + 96) / 20000]Killed by signal 15.
