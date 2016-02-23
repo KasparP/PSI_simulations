@@ -8,7 +8,7 @@ import random
 import matplotlib.pyplot as plt
 import progressbar
 import os
-#import code
+import code
 # import theano
 # import theano.tensor as TT
 
@@ -180,14 +180,16 @@ def reconstruct_cpu(Y,Sk,Fk,Su,Fu,Nframes,nIter,eta,mu,adagrad,groundtruth=None,
         if groundtruth is not None:
             maxind = sp.minimum(10, len(tidx))
             recon = Su.dot(Fu[:,tidx[0:maxind]])  #kinda slow
-            recon += Sk.dot(Fk[:,tidx[0:maxind]])
+            recon_U = recon.copy()
+            recon_K = Sk.dot(Fk[:,tidx[0:maxind]])
+            recon += recon_K
+
             recon_gt = ndarray.reshape(groundtruth.IM, (-1,1), order='F') + groundtruth.seg.dot(groundtruth.activity[:,tidx[0:maxind]]) #really slow
-            recon_K = np.zeros(shape=(0, 1))
-            recon_U = np.zeros(shape=(0, 1))
+            gt_K = recon_gt.copy()
+            gt_U = np.zeros(shape=(0, 1))
             if groundtruth.Su.size>1:
-                recon_K = recon_gt
-                recon_U = groundtruth.Su.dot(groundtruth.Fu[:,tidx[0:maxind]])
-                recon_gt += recon_U
+                gt_U = groundtruth.Su.dot(groundtruth.Fu[:,tidx[0:maxind]])
+                recon_gt += gt_U
 
             for ix in range(maxind):
                 P = Pu(tidx[ix])
