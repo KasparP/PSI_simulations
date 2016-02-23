@@ -207,7 +207,7 @@ def reconstruct_cpu(Y,Sk,Fk,Su,Fu,Nframes,nIter,eta,mu,adagrad,groundtruth=None,
             if groundtruth is None:
                 io.savemat(out_fn,{'loss':loss,'Y':Y,'Xhat':Xhat,'Sk':Sk,'Fk':Fk,'Su':Su,'Fu':Fu, 'mask':mask})
             else:
-                io.savemat(out_fn,{'loss':loss,'loss_gt':loss_gt, 'Y':Y,'Xhat':Xhat,'Sk':Sk,'Fk':Fk,'Su':Su,'Fu':Fu, 'recon':recon[:,0], 'recon_gt':recon_gt[:,0], 'recon_K':recon_K[:,0], 'recon_U':recon_U[:,0], 'IM':groundtruth.IM, 'mask':mask, 'PSFu':PSFu, 'PSFk':PSFk})
+                io.savemat(out_fn,{'loss':loss,'loss_gt':loss_gt, 'Y':Y,'Xhat':Xhat,'Sk':Sk,'Fk':Fk,'Su':Su,'Fu':Fu, 'recon':recon[:,0], 'recon_gt':recon_gt[:,0], 'recon_K':recon_K[:,0], 'recon_U':recon_U[:,0], 'gt_U':gt_U[:,0], 'gt_K':gt_K[:,0], 'IM':groundtruth.IM, 'mask':mask, 'PSFu':PSFu, 'PSFk':PSFk})
 
 
         # compute gradients
