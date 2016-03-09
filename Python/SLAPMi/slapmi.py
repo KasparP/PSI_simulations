@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 import progressbar
 import os
 import code
-
+# from pyspark import SparkConf, SparkContext
 # import theano
 # import theano.tensor as TT
 
@@ -18,11 +18,6 @@ import code
 
 def Pu(P0,it):
     return P0  # function to motioncorrect P at a given frame
-
-def Pk(P0, it):
-    return P0[:, mask]
-
-# IS THIS THE CORRECT SIZE TO INITIALIZE THESE?
 
 #Function definitions
 def lossfun():
@@ -98,7 +93,7 @@ def lossfun_aug():
     return l_aug
 
 
-def reconstruct_cpu(Y,Sk,Fk,Su,Fu,P0,mask,masks,Nframes,nIter,eta,mu,adagrad,groundtruth=None, out_fn = 'output.mat'):
+def reconstruct_cpu(Y,Sk,Fk,Su,Fu,P0,mask,masks,Nframes,nIter,eta,mu,adagrad,groundtruth=None, out_fn='output.mat', sparkcontext='None'):
     print 'Working in: ', os.getcwd()
     print 'Y (min,max): (%f,%f)' % (Y.min(),Y.max())
     Nproj, T = Y.shape
@@ -148,7 +143,10 @@ def reconstruct_cpu(Y,Sk,Fk,Su,Fu,P0,mask,masks,Nframes,nIter,eta,mu,adagrad,gro
 
     #For parallel solve of F
 
-
+    # if sparkcontext is not None:
+    #     print 'Full solve of F...'
+    #     Fk,Fu = solveFgivenS(Y, Sk, Su, masks, P0, sparkcontext)
+    #     print 'F solve complete.'
 
     for ITER in range(nIter):
 
@@ -318,9 +316,7 @@ def reconstruct_cpu(Y,Sk,Fk,Su,Fu,P0,mask,masks,Nframes,nIter,eta,mu,adagrad,gro
         Fk = np.multiply(scaleSk.T, Fk)
 
         #Full solve of F given the updated S
-        print 'Full solve of F...'
-        Fk,Fu = solveFgivenS(Y, Sk, Su, masks, P0)
-        print 'F solve complete.'
+
 
         print "\n"
 
@@ -416,18 +412,19 @@ def solveOneFrame(frameDataIn, P0):  #framedata has structure [framenumber, y[:,
     return F[0]
 
 def test1(frameDataIn, P0):
-    return np.concatenate(Sk_bc.value, Su_bc.value, axis=1)
+    return frameDataIn[0]
 
-def solveFgivenS(Y, Sk, Su, masks, P0):
+def solveFgivenS(Y, Sk, Su, masks, P0, sc):
 
     frameData = [(i, Y[:,i]) for i in range(Y.shape[1])]
-
+    #conf = SparkConf().setAppName('SLAPmi_main')
+    #sc = SparkContext(conf=conf)
     #sc.addPyFile('../SLAPMi/__main__.py')
 
     Sk_bc = sc.broadcast(Sk)
     Su_bc = sc.broadcast(Su)
 
-    F_solved = np.array(sc.parallelize(frameData,len(frameData)).map(lambda x: test1(x, P0)).collect())
+    F_solved = np.array(sc.parallelize(frameData,len(frameData)).map(lambda x: x).collect())
     #F_solved = np.array(sc.parallelize(frameData,len(frameData)).map(lambda x: solveOneFrame(x, P0)).collect())
 
     Fk = F_solved[:, 0:len(Sk)]

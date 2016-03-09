@@ -1,2 +1,2 @@
-from __main__ import *
+from slapmi import *
 
