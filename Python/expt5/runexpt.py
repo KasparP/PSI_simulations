@@ -1,6 +1,7 @@
 import os, sys
 #sys.path.append('/groups/turaga/home/turagas/research/PSI_simulations/Python/')
 sys.path.append('Y:/podgorskik/PSI_simulations/Python/')
+sys.path.append('Y:/podgorskik/PSI_simulations/Python/SLAPMi')
 sys.path.append('/tier2/turaga/podgorskik/PSI_simulations/Python')
 
 import SLAPMi

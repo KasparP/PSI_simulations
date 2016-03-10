@@ -9,12 +9,16 @@ import matplotlib.pyplot as plt
 import progressbar
 import os
 import code
+from NN_KP import NN_KP
+
 # from pyspark import SparkConf, SparkContext
 # import theano
 # import theano.tensor as TT
 
 # @jit
 
+#os.environ['PYTHONPATH'] = (os.environ['PYTHONPATH'] + '/tier2/turaga/podgorskik/PSI_simulations/Python/SLAPMi/:')
+from scipy import optimize
 
 def Pu(P0,it):
     return P0  # function to motioncorrect P at a given frame
@@ -93,7 +97,7 @@ def lossfun_aug():
     return l_aug
 
 
-def reconstruct_cpu(Y,Sk,Fk,Su,Fu,P0,mask,masks,Nframes,nIter,eta,mu,adagrad,groundtruth=None, out_fn='output.mat', sparkcontext='None'):
+def reconstruct_cpu(Y,Sk,Fk,Su,Fu,P0,mask,masks,Nframes,nIter,eta,mu,adagrad,groundtruth=None, out_fn='output.mat', sparkcontext=None):
     print 'Working in: ', os.getcwd()
     print 'Y (min,max): (%f,%f)' % (Y.min(),Y.max())
     Nproj, T = Y.shape
@@ -136,17 +140,20 @@ def reconstruct_cpu(Y,Sk,Fk,Su,Fu,P0,mask,masks,Nframes,nIter,eta,mu,adagrad,gro
     M = masks
     mask_ixs = [masks[:,x].nonzero()[0] for x in range(Sk.shape[1])]
 
-    Su_in = Su
-    Sk_in = Sk
-    Fu_in = Fu
-    Fk_in = Fk
+    Su_in = Su.copy()
+    Sk_in = Sk.copy()
+    Fu_in = Fu.copy()
+    Fk_in = Fk.copy()
 
-    #For parallel solve of F
 
-    # if sparkcontext is not None:
-    #     print 'Full solve of F...'
-    #     Fk,Fu = solveFgivenS(Y, Sk, Su, masks, P0, sparkcontext)
-    #     print 'F solve complete.'
+    # code.interact(local=locals())
+
+
+    #parallel solve of F
+    if sparkcontext is not None:
+        print 'Full solve of F...'
+        Fk,Fu = solveFgivenS(Y, Sk, Su, masks, P0, sparkcontext)
+        print 'F solve complete.'
 
     for ITER in range(nIter):
 
@@ -401,32 +408,56 @@ def prepexpt(fn = '../Problem_nonoise_v2_init.mat'):
     return (Y,Sk,Fk,Su,Fu,GT, P0, mask, masks)
 
 
-def solveOneFrame(frameDataIn, P0):  #framedata has structure [framenumber, y[:,framenumber]]
-    from scipy import optimize
-    #return frameDataIn[0]
-    Pt = Pu(P0,frameDataIn[0])
-    PSk = Pt.dot(Sk_bc.value).toarray()
-    PSu = Pt.dot(Su_bc.value)
-    PS = np.concatenate((PSk, PSu), axis=1)
-    F = optimize.nnls(PS,frameDataIn[1])
-    return F[0]
+# def solveOneFrame(frameDataIn, P0):  #framedata has structure [framenumber, y[:,framenumber]]
+#     from scipy import optimize
+#     #return frameDataIn[0]
+#     Pt = Pu(P0,frameDataIn[0])
+#     PSk = Pt.dot(Sk_bc.value).toarray()
+#     PSu = Pt.dot(Su_bc.value)
+#     PS = np.concatenate((PSk, PSu), axis=1)
+#     F = optimize.nnls(PS,frameDataIn[1])
+#     return F[0]
 
-def test1(frameDataIn, P0):
-    return frameDataIn[0]
+# def test1(frameDataIn, P0):
+#     #     #from scipy import optimize
+#     #     #Pt = Pu(P0,frameDataIn[0])
+#     return frameDataIn[0]
 
 def solveFgivenS(Y, Sk, Su, masks, P0, sc):
-
     frameData = [(i, Y[:,i]) for i in range(Y.shape[1])]
-    #conf = SparkConf().setAppName('SLAPmi_main')
-    #sc = SparkContext(conf=conf)
-    #sc.addPyFile('../SLAPMi/__main__.py')
 
-    Sk_bc = sc.broadcast(Sk)
+    Sk_bc = sc.broadcast(Sk) #sparkcontext must be created in the top level runexpt.py
     Su_bc = sc.broadcast(Su)
 
-    F_solved = np.array(sc.parallelize(frameData,len(frameData)).map(lambda x: x).collect())
-    #F_solved = np.array(sc.parallelize(frameData,len(frameData)).map(lambda x: solveOneFrame(x, P0)).collect())
+    def solveOneFrame(frameDataIn, P0):  #framedata has structure [framenumber, y[:,framenumber]]
+        #from scipy import optimize
+        #return frameDataIn[0]
+        Pt = Pu(P0,frameDataIn[0])
+        PSk = Pt.dot(Sk_bc.value).toarray()
+        PSu = Pt.dot(Su_bc.value)
+        PS = np.concatenate((PSk, PSu), axis=1)
+        F = optimize.nnls(PS,frameDataIn[1])
+        return F[0]
 
-    Fk = F_solved[:, 0:len(Sk)]
-    Fu = F_solved[:, len(Sk):len(Sk+Su.shape[1])]
+    F_solved = np.array(sc.parallelize(frameData,len(frameData)).map(lambda x: solveOneFrame(x, P0)).collect())
+
+    Fk = F_solved[:, 0:Sk.shape[1]].T
+    Fu = F_solved[:, Sk.shape[1]:(Sk.shape[1]+Su.shape[1])].T
+
+
+    #NND filter the F timecourse
+    Fk = applyNND(Fk)
+    Fu = applyNND(Fu)
     return Fk,Fu
+
+
+def applyNND(F, tau=5, tau_reverse=2):
+    k = sp.exp(-(sp.arange(7*tau+1).astype('float')/tau))   #the convolution kernel
+    #k_reverse = sp.exp(-(sp.arange(7*tau_reverse+1).astype('float')/tau_reverse))   #the convolution kernel
+    print 'applying NND...'
+    p = np.percentile(F,5,axis=1)
+    for n in range(F.shape[0]):
+        print n
+        F[n,:] = np.convolve(k, NN_KP(F[n,:]-p[n], tau)[:,0], 'same') + p[n]
+        #F[n, ::-1] = np.convolve(k_reverse, NN_KP(F[n,::-1]-p[n], tau_reverse)[:,0], 'same') + p[n]
+    return F
